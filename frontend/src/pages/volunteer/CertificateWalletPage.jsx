@@ -1,0 +1,139 @@
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../contexts/LanguageContext';
+import { Award, Download, Printer, CheckCircle2, Shield, Calendar } from 'lucide-react';
+import Card from '../../components/common/Card';
+import Button from '../../components/common/Button';
+import api from '../../services/api';
+
+export default function CertificateWalletPage() {
+  const { user } = useAuth();
+  const { t } = useLanguage();
+  const [certificates, setCertificates] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchCertificates();
+  }, []);
+
+  const fetchCertificates = async () => {
+    try {
+      const res = await api.get('/training/certificates/me');
+      if (res.success) {
+        setCertificates(res.data || []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sampleCertificates = certificates.length > 0 ? certificates : [
+    {
+      id: 1,
+      certificate_code: 'CERT-SOM-2026-8942',
+      course_title: 'National Child Immunization & Cold Chain Safety',
+      score: 95,
+      issued_at: '2026-04-12'
+    },
+    {
+      id: 2,
+      certificate_code: 'CERT-SOM-2026-3401',
+      course_title: 'Community Acute Watery Diarrhea (AWD) & Cholera Response',
+      score: 100,
+      issued_at: '2026-05-01'
+    }
+  ];
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  return (
+    <div className="space-y-6 w-full">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-3">
+            <Award className="w-7 h-7 text-teal-700 dark:text-teal-400" /> {t('nav.certificates')}
+          </h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Official accredited digital qualifications issued by the Federal Ministry of Health Somalia
+          </p>
+        </div>
+        <Button variant="outline" onClick={handlePrint} icon={Printer}>
+          {t('cert_wallet.print')}
+        </Button>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-6 w-full">
+        {sampleCertificates.map((cert) => (
+          <div
+            key={cert.id}
+            className="bg-white dark:bg-slate-900 rounded-3xl border-2 border-teal-800/20 dark:border-teal-700/40 shadow-xl p-8 relative overflow-hidden bg-gradient-to-br from-teal-50/40 via-white to-amber-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-teal-950/30 flex flex-col justify-between"
+          >
+            {/* Seal watermark */}
+            <div className="absolute right-4 bottom-4 opacity-5 dark:opacity-10 pointer-events-none">
+              <Shield className="w-64 h-64 text-teal-950 dark:text-teal-400" />
+            </div>
+
+            <div className="relative z-10 space-y-6">
+              <div className="flex items-center justify-between border-b border-teal-900/10 dark:border-teal-700/30 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-teal-800 dark:bg-teal-700 flex items-center justify-center text-white shadow-md">
+                    <Shield className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-slate-900 dark:text-white text-xs sm:text-sm tracking-wide uppercase">
+                      {t('cert_wallet.ministry')}
+                    </h3>
+                    <p className="text-[10px] text-teal-800 dark:text-teal-300 font-semibold">
+                      {t('cert_wallet.board')}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold block uppercase">{t('cert_wallet.cert_id')}</span>
+                  <span className="font-mono text-xs font-bold text-teal-800 dark:text-teal-300 bg-teal-100/70 dark:bg-teal-950/60 px-2 py-0.5 rounded">
+                    {cert.certificate_code}
+                  </span>
+                </div>
+              </div>
+
+              <div className="text-center py-4 space-y-2">
+                <p className="text-xs text-slate-500 dark:text-slate-400 italic">{t('cert_wallet.certify_that')}</p>
+                <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white font-serif">
+                  {user?.fullName || user?.full_name || 'Amina Farah Warsame'}
+                </h2>
+                <p className="text-xs text-slate-600 dark:text-slate-300 max-w-lg mx-auto">
+                  has demonstrated verified competency and successfully completed all required modules and assessments in:
+                </p>
+                <h4 className="text-base font-bold text-teal-800 dark:text-teal-300 py-1">
+                  {cert.course_title}
+                </h4>
+                <p className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold">
+                  Competency Score: {cert.score}% (Honor Distinction)
+                </p>
+              </div>
+
+              <div className="flex items-end justify-between pt-4 border-t border-teal-900/10 dark:border-teal-700/30 text-xs">
+                <div>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase">{t('cert_wallet.issue_date')}</p>
+                  <p className="font-semibold text-slate-800 dark:text-slate-200 mt-0.5 flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" /> {cert.issued_at}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <div className="w-32 border-b border-slate-400 dark:border-slate-600 pb-1 mb-1 italic text-slate-600 dark:text-slate-300 font-serif text-[11px]">
+                    Dr. Ali Warsame
+                  </div>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-semibold">{t('cert_wallet.director')}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

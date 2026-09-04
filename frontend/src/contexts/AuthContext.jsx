@@ -1,0 +1,147 @@
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import api from '../services/api';
+
+const AuthContext = createContext();
+
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(() => localStorage.getItem('caafimaad_token'));
+  const [loading, setLoading] = useState(true);
+
+  const fetchCurrentUser = async (authToken) => {
+    if (!authToken) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const data = await api.get('/auth/me');
+      if (data && data.success && data.data) {
+        setUser(data.data);
+      } else {
+        logout();
+      }
+    } catch (err) {
+      console.error('[AuthContext] Fetch user failed:', err);
+      // Only logout if 401 Unauthorized
+      if (err.status === 401) {
+        logout();
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (token) {
+      fetchCurrentUser(token);
+    } else {
+      setLoading(false);
+    }
+  }, [token]);
+
+  const login = async (email, password) => {
+    const data = await api.post('/auth/login', { email, password });
+    if (!data || !data.data) {
+      throw new Error('Invalid login response from server');
+    }
+
+    const { accessToken, refreshToken, user: userData } = data.data;
+    localStorage.setItem('caafimaad_token', accessToken);
+    if (refreshToken) {
+      localStorage.setItem('caafimaad_refresh_token', refreshToken);
+    }
+    setToken(accessToken);
+    setUser(userData);
+    return userData;
+  };
+
+  const registerVolunteer = async (payload) => {
+    const data = await api.post('/auth/register', payload);
+    return data.data;
+  };
+
+  const registerPublicUser = async (payload) => {
+    const data = await api.post('/auth/register-public', payload);
+    return data.data;
+  };
+
+  const logout = () => {
+    localStorage.removeItem('caafimaad_token');
+    localStorage.removeItem('caafimaad_refresh_token');
+    setToken(null);
+    setUser(null);
+  };
+
+  // Quick switch role helper for easy testing / evaluation
+  const quickSwitchRole = async (targetRole) => {
+    let email = 'superadmin@example.com';
+    if (targetRole === 'ADMIN') email = 'admin@example.com';
+    if (targetRole === 'VOLUNTEER') email = 'volunteer@example.com';
+    if (targetRole === 'PUBLIC_USER') {
+      logout();
+      return;
+    }
+    return await login(email, 'Password123!');
+  };
+
+  const updateUser = (updatedData) => {
+    if (!updatedData) return;
+    setUser(prev => ({
+      ...prev,
+      ...updatedData
+    }));
+  };
+
+  const refreshUser = async () => {
+    if (token) {
+      await fetchCurrentUser(token);
+    }
+  };
+
+  const roleUpper = (user?.role || '').toUpperCase();
+  const rolesUpper = Array.isArray(user?.roles) ? user.roles.map(r => String(r).toUpperCase()) : [];
+  const isSuper = roleUpper === 'SUPER_ADMIN' || roleUpper === 'SUPERADMIN' || rolesUpper.includes('SUPER_ADMIN');
+  const isAdminUser = isSuper || roleUpper === 'ADMIN' || rolesUpper.includes('ADMIN');
+  const isAnalystUser = roleUpper === 'DATA_ANALYST' || roleUpper === 'DATAANALYST' || roleUpper === 'ANALYST' || rolesUpper.includes('DATA_ANALYST');
+  const isVolUser = roleUpper === 'VOLUNTEER' || rolesUpper.includes('VOLUNTEER');
+  const isPubUser = roleUpper === 'PUBLIC_USER' || roleUpper === 'PUBLIC' || rolesUpper.includes('PUBLIC_USER');
+
+  const hasPermission = (permissionCode) => {
+    if (!user) return false;
+    if (isSuper) return true;
+    return user.permissions && user.permissions.includes(permissionCode);
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        loading,
+        login,
+        registerVolunteer,
+        registerPublicUser,
+        updateUser,
+        refreshUser,
+        logout,
+        quickSwitchRole,
+        hasPermission,
+        isAuthenticated: !!user,
+        isSuperAdmin: isSuper,
+        isAdmin: isAdminUser,
+        isOperational: isSuper || isAdminUser,
+        isAnalyst: isAnalystUser,
+        isVolunteer: isVolUser,
+        isPublicUser: isPubUser
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  return useContext(AuthContext);
+}

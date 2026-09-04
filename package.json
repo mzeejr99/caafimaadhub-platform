@@ -1,0 +1,24 @@
+{
+  "name": "caafimaadhub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CaafimaadHub - Community Health Volunteer Coordination & Field Operations Platform",
+  "scripts": {
+    "start": "npm run start --prefix backend",
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "migrate:mysql": "npm run migrate:mysql --prefix backend",
+    "seed": "npm run seed --prefix backend",
+    "test": "npm run test --prefix backend",
+    "build:frontend": "npm run build --prefix frontend"
+  },
+  "keywords": [
+    "health",
+    "volunteer",
+    "chv",
+    "somalia",
+    "pwa",
+    "offline-first"
+  ],
+  "author": "CaafimaadHub Core Team"
+}

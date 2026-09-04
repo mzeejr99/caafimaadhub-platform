@@ -1,0 +1,19 @@
+{
+  "short_name": "CaafimaadHub",
+  "name": "CaafimaadHub — CHV Health Platform",
+  "description": "Community Health Volunteer Operations Platform for Somalia",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "scope": "/",
+  "background_color": "#0F766E",
+  "theme_color": "#0F766E",
+  "display": "standalone",
+  "orientation": "portrait"
+}
