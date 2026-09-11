@@ -43,6 +43,9 @@ export default function VolunteerSupplyRequestsPage() {
       if (itemsRes.success || Array.isArray(itemsRes.data) || Array.isArray(itemsRes)) {
         const itemList = itemsRes.data || (Array.isArray(itemsRes) ? itemsRes : []);
         setItems(itemList);
+        if (itemList.length > 0) {
+          setForm(prev => ({ ...prev, item_id: prev.item_id || itemList[0].id }));
+        }
       }
     } catch (err) {
       console.error(err);
@@ -54,6 +57,12 @@ export default function VolunteerSupplyRequestsPage() {
   const handleCreate = async (e) => {
     e.preventDefault();
     setModalError('');
+
+    const targetItemId = form.item_id || (items.length > 0 ? items[0].id : null);
+    if (!targetItemId) {
+      setModalError(language === 'so' ? 'Fadlan dooro qalabka ama dawada' : 'Please select an item');
+      return;
+    }
 
     const qtyCheck = validateNumberOnly(form.quantity, 'Tirada la rabo', language);
     if (!qtyCheck.isValid) {
@@ -68,16 +77,20 @@ export default function VolunteerSupplyRequestsPage() {
 
     setSubmitting(true);
     try {
+      const qtyNum = parseInt(form.quantity, 10);
       await api.post('/inventory/requests', {
-        item_id: form.item_id,
-        quantity_requested: parseInt(form.quantity, 10),
+        item_id: targetItemId,
+        itemId: targetItemId,
+        quantity_requested: qtyNum,
+        requestedQuantity: qtyNum,
+        quantity: qtyNum,
         reason: form.reason
       });
       addToast('Codsigaaga qalabka waxaa loo diray bakhaarka caafimaadka degmada', 'success');
       setIsModalOpen(false);
       fetchData();
       setForm({
-        item_id: '',
+        item_id: items[0]?.id || '',
         quantity: '',
         reason: ''
       });
@@ -99,7 +112,7 @@ export default function VolunteerSupplyRequestsPage() {
             Codso qalab caafimaad, xirmooyinka ORS, qalabka baaritaanka, ama tallaalka goobaha fogfog
           </p>
         </div>
-        <Button onClick={() => { setForm({ item_id: '', quantity: '', reason: '' }); setModalError(''); setIsModalOpen(true); }} icon={Plus}>
+        <Button onClick={() => { setForm({ item_id: items[0]?.id || '', quantity: '', reason: '' }); setModalError(''); setIsModalOpen(true); }} icon={Plus}>
           {t('supplies.request_new')}
         </Button>
       </div>

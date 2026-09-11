@@ -251,7 +251,7 @@ export default function CourseDetailPage() {
   const estimatedHours = Number(course.estimated_hours || 0);
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-6 w-full">
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-3">
@@ -260,7 +260,7 @@ export default function CourseDetailPage() {
           </Button>
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <Badge variant="teal">{enumLabel(t, course.category)}</Badge>
+              <Badge variant="sky">{enumLabel(t, course.category)}</Badge>
               <span className="text-[11px] font-mono text-slate-400 dark:text-slate-500">{course.code}</span>
             </div>
             <h1 className="text-xl font-extrabold text-slate-900 dark:text-white">{course.title}</h1>

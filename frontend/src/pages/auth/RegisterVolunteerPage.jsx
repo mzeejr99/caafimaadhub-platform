@@ -11,12 +11,15 @@ import {
 } from 'lucide-react';
 import { Input, Select, Textarea } from '../../components/common/Input';
 import Button from '../../components/common/Button';
+import { SOMALIA_DISTRICTS_MAP } from '../../components/common/UserFormModal';
 import {
   validateTextOnly,
   validateEmail,
   validatePhone,
-  validatePassword
+  validatePassword,
+  validateAge18Plus
 } from '../../utils/validation';
+
 
 export default function RegisterVolunteerPage() {
   const { registerVolunteer } = useAuth();
@@ -76,12 +79,11 @@ export default function RegisterVolunteerPage() {
     const pwdCheck = validatePassword(form.password, language);
     if (!pwdCheck.isValid) { setFormError(pwdCheck.message); return; }
 
-    if (!form.date_of_birth) {
-      setFormError(language === 'so' ? 'Fadlan geli taariikhda dhalashada' : 'Please enter your date of birth');
-      return;
-    }
+    const dobCheck = validateAge18Plus(form.date_of_birth, language, language === 'so' ? 'Taariikhda dhalashada' : 'Date of birth');
+    if (!dobCheck.isValid) { setFormError(dobCheck.message); return; }
 
     if (!form.gender) {
+
       setFormError(language === 'so' ? 'Fadlan dooro jinsigaaga (Lab/Dheddig)' : 'Please select your gender');
       return;
     }
@@ -396,11 +398,13 @@ export default function RegisterVolunteerPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
-                  label={t('reg_vol.dob')}
+                  label={`${t('reg_vol.dob')} (18+ Sano)`}
                   name="date_of_birth"
                   type="date"
+                  max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
                   value={form.date_of_birth}
                   onChange={handleChange}
+                  helperText={language === 'so' ? 'Waa in aad jirtaa 18 sano ama ka weyn' : 'Must be 18 years or older'}
                   required
                   submitted={submitted}
                 />
@@ -423,18 +427,20 @@ export default function RegisterVolunteerPage() {
                   label={t('common.region')}
                   name="region_name"
                   value={form.region_name}
-                  onChange={handleChange}
+                  onChange={(e) => {
+                    const newReg = e.target.value;
+                    setForm(prev => ({ ...prev, region_name: newReg, district_name: '' }));
+                  }}
                   options={regions.map(r => ({ value: r, label: r }))}
                   required
                   submitted={submitted}
                 />
-                <Input
+                <Select
                   label={t('common.district')}
                   name="district_name"
                   value={form.district_name}
                   onChange={handleChange}
-                  validationType="text-only"
-                  placeholder={t('reg_vol.district_ph')}
+                  options={(form.region_name && SOMALIA_DISTRICTS_MAP[form.region_name] ? SOMALIA_DISTRICTS_MAP[form.region_name] : Array.from(new Set(Object.values(SOMALIA_DISTRICTS_MAP).flat())).sort()).map(d => ({ value: d, label: d }))}
                   required
                   submitted={submitted}
                 />

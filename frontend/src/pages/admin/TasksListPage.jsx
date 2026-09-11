@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import { CheckSquare, Plus, MapPin, Calendar, Clock, Edit, Trash2, AlertCircle, ListTodo, PlayCircle, CheckCircle, Flame } from 'lucide-react';
@@ -10,6 +10,8 @@ import Modal from '../../components/common/Modal';
 import { Input, Select, Textarea } from '../../components/common/Input';
 import api from '../../services/api';
 import { validateFutureOrTodayDate } from '../../utils/validation';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
+
 
 export default function TasksListPage() {
   const { t, language } = useLanguage();
@@ -72,9 +74,9 @@ export default function TasksListPage() {
   ];
 
   useEffect(() => {
-    fetchTasks();
     fetchMetadata();
-  }, [statusFilter, priorityFilter]);
+  }, []);
+
 
   const fetchMetadata = async () => {
     try {
@@ -89,23 +91,31 @@ export default function TasksListPage() {
     }
   };
 
-  const fetchTasks = async () => {
-    setLoading(true);
+  const fetchTasks = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const res = await api.get('/tasks', {
         status: statusFilter || undefined,
         priority: priorityFilter || undefined,
         search: search || undefined
       });
-      if (res.success) {
+      if (res && res.success) {
         setTasks(res.data || []);
       }
     } catch (err) {
-      console.error(err);
+      if (!isSilent) console.error(err);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
-  };
+  }, [statusFilter, priorityFilter, search]);
+
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
+
+  // Silent auto refresh every 12 seconds
+  useAutoRefresh(fetchTasks, 12000, !isAddModalOpen && !isEditModalOpen && !isDeleteModalOpen);
+
 
   // CREATE Task
   const handleCreate = async (e) => {

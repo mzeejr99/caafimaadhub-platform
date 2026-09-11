@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useNotification } from '../../contexts/NotificationContext';
@@ -10,7 +10,9 @@ import Modal from '../../components/common/Modal';
 import StatCard from '../../components/common/StatCard';
 import { Input, Select, Textarea } from '../../components/common/Input';
 import api from '../../services/api';
-import { validateTextOnly, validateEmail, validatePhone, validatePassword } from '../../utils/validation';
+import { validateTextOnly, validateEmail, validatePhone, validatePassword, validateAge18Plus } from '../../utils/validation';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
+
 
 export default function VolunteersListPage() {
   const { t, language } = useLanguage();
@@ -62,7 +64,6 @@ export default function VolunteersListPage() {
   ];
 
   useEffect(() => { fetchStats(); }, []);
-  useEffect(() => { fetchVolunteers(); }, [pagination.offset, statusFilter]);
 
   const fetchStats = async () => {
     try {
@@ -82,8 +83,8 @@ export default function VolunteersListPage() {
     } catch (err) {}
   };
 
-  const fetchVolunteers = async () => {
-    setLoading(true);
+  const fetchVolunteers = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const res = await api.get('/volunteers', {
         offset: pagination.offset,
@@ -91,12 +92,24 @@ export default function VolunteersListPage() {
         search: search || undefined,
         status: statusFilter || undefined
       });
-      if (res.success) {
+      if (res && res.success) {
         setVolunteers(res.data || []);
         setPagination(prev => ({ ...prev, total: res.pagination?.total ?? res.total ?? res.data?.length ?? 0 }));
       }
-    } catch (err) { console.error(err); } finally { setLoading(false); }
-  };
+    } catch (err) {
+      if (!isSilent) console.error(err);
+    } finally {
+      if (!isSilent) setLoading(false);
+    }
+  }, [pagination.offset, pagination.limit, search, statusFilter]);
+
+  useEffect(() => {
+    fetchVolunteers();
+  }, [fetchVolunteers]);
+
+  // Silent auto refresh every 12 seconds
+  useAutoRefresh(fetchVolunteers, 12000, !isAddModalOpen && !isEditModalOpen && !isDeleteModalOpen);
+
 
   const handleSearch = () => { setPagination(p => ({ ...p, offset: 0 })); fetchVolunteers(); };
 
@@ -118,10 +131,8 @@ export default function VolunteersListPage() {
     const pwdCheck = validatePassword(addForm.password, language);
     if (!pwdCheck.isValid) { setModalError(pwdCheck.message); return; }
 
-    if (!addForm.date_of_birth) {
-      setModalError(language === 'so' ? 'Fadlan geli taariikhda dhalashada' : 'Please enter date of birth');
-      return;
-    }
+    const dobCheck = validateAge18Plus(addForm.date_of_birth, language, language === 'so' ? 'Taariikhda dhalashada' : 'Date of birth');
+    if (!dobCheck.isValid) { setModalError(dobCheck.message); return; }
 
     if (!addForm.gender) {
       setModalError(language === 'so' ? 'Fadlan dooro jinsiga' : 'Please select gender');
@@ -418,11 +429,13 @@ export default function VolunteersListPage() {
                 submitted={submitted}
               />
               <Input
-                label={language === 'so' ? 'Taariikhda Dhalashada (DOB)' : 'Date of Birth'}
+                label={`${language === 'so' ? 'Taariikhda Dhalashada' : 'Date of Birth'} (18+ Sano)`}
                 name="date_of_birth"
                 type="date"
+                max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
                 value={addForm.date_of_birth}
                 onChange={(e) => setAddForm({ ...addForm, date_of_birth: e.target.value })}
+                helperText={language === 'so' ? 'Waa inuu jiraa 18 sano ama ka weyn' : 'Must be 18 years or older'}
                 required
                 submitted={submitted}
               />

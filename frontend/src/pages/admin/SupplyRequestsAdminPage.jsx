@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import { Truck, CheckCircle2, XCircle, Trash2, Clock, User, Package, AlertCircle, ListOrdered } from 'lucide-react';
@@ -8,33 +8,36 @@ import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import api from '../../services/api';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 
 export default function SupplyRequestsAdminPage() {
   const { t, language } = useLanguage();
   const { addToast } = useNotification();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedRequest, setSelectedRequest] = useState(null);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deletingRequest, setDeletingRequest] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  useEffect(() => {
-    fetchRequests();
-  }, []);
-
-  const fetchRequests = async () => {
-    setLoading(true);
+  const fetchRequests = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const res = await api.get('/inventory/requests');
-      if (res.success) {
+      if (res && res.success) {
         setRequests(res.data || []);
       }
     } catch (err) {
-      console.error(err);
+      if (!isSilent) console.error(err);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchRequests();
+  }, [fetchRequests]);
+
+  // Silent auto refresh every 12 seconds
+  useAutoRefresh(fetchRequests, 12000, !deletingRequest);
 
   const handleReview = async (id, status) => {
     setActionLoading(true);
@@ -43,8 +46,8 @@ export default function SupplyRequestsAdminPage() {
         status,
         adminRemarks: status === 'APPROVED' ? t('supply_admin.approved_by') : status === 'ISSUED' ? t('supply_admin.dispatched') : 'Rejected'
       });
-      addToast(`Supply request ${status.toLowerCase()} successfully in MySQL`, 'success');
-      fetchRequests();
+      addToast(`Supply request ${status.toLowerCase()} successfully`, 'success');
+      fetchRequests(true);
     } catch (err) {
       addToast(err.message || `Failed to update request`, 'error');
     } finally {
@@ -53,16 +56,15 @@ export default function SupplyRequestsAdminPage() {
   };
 
   const handleDelete = async () => {
-    if (!selectedRequest) return;
+    if (!deletingRequest) return;
     setActionLoading(true);
     try {
-      await api.delete(`/inventory/requests/${selectedRequest.id}`);
+      await api.delete(`/inventory/requests/${deletingRequest.id}`);
       addToast(t('supply_admin.deleted'), 'success');
-      setIsDeleteModalOpen(false);
-      setSelectedRequest(null);
-      fetchRequests();
+      setDeletingRequest(null);
+      fetchRequests(true);
     } catch (err) {
-      addToast(err.message || t('supply_admin.delete_failed'), 'error');
+      addToast(err.message || `Failed to delete request`, 'error');
     } finally {
       setActionLoading(false);
     }
@@ -139,8 +141,8 @@ export default function SupplyRequestsAdminPage() {
           <Button
             size="sm"
             variant="ghost"
-            className="text-red-600 hover:bg-red-50"
-            onClick={() => { setSelectedRequest(row); setIsDeleteModalOpen(true); }}
+            className="text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
+            onClick={() => setDeletingRequest(row)}
             icon={Trash2}
           >
             {t('common.delete')}
@@ -171,8 +173,8 @@ export default function SupplyRequestsAdminPage() {
 
       {/* Delete Confirmation Modal */}
       <Modal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
+        isOpen={!!deletingRequest}
+        onClose={() => setDeletingRequest(null)}
         title={t('supply_admin.delete_title')}
         maxWidth="max-w-md"
       >
@@ -182,12 +184,12 @@ export default function SupplyRequestsAdminPage() {
             <div>
               <p className="font-bold">{t('supply_admin.confirm_delete_q')}</p>
               <p className="text-xs text-red-700 dark:text-red-300 mt-1">
-                Are you sure you want to remove request for "{selectedRequest?.item_name}" from MySQL?
+                Are you sure you want to remove request for "{deletingRequest?.item_name}"?
               </p>
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={() => setIsDeleteModalOpen(false)}>
+            <Button variant="ghost" onClick={() => setDeletingRequest(null)}>
               {t('common.cancel')}
             </Button>
             <Button
@@ -204,3 +206,4 @@ export default function SupplyRequestsAdminPage() {
     </div>
   );
 }
+

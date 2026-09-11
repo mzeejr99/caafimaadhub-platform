@@ -4,6 +4,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import api from '../../services/api';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
+
 import {
   Users, Megaphone, CheckSquare, ClipboardList, AlertTriangle,
   Package, MessageSquare, TrendingUp, Calendar, ChevronDown,
@@ -112,20 +114,25 @@ export default function AdminDashboard() {
   const currentDate = new Date();
   const dateStr = formatLongDate(currentDate, language);
 
-  const fetchDashboardData = useCallback(async () => {
+  const fetchDashboardData = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const res = await api.get('/analytics/dashboard');
-      if (res.success) setStats(res.data);
+      if (res && res.success) setStats(res.data);
     } catch (err) {
-      console.error('Failed to fetch dashboard stats:', err);
+      if (!isSilent) console.error('Failed to fetch dashboard stats:', err);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
+
+  // Automatic background refresh every 10 seconds without flickering
+  useAutoRefresh(fetchDashboardData, 10000);
+
 
   // ── Line chart: field submissions trend (last 30 days) ───────────────────
   const trendDates = stats?.submissionsTrend?.map(d => d.date) || [];

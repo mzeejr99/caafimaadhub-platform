@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -10,6 +10,7 @@ import Card from '../../components/common/Card';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 import api from '../../services/api';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 
 export default function VolunteerDashboard() {
   const { user } = useAuth();
@@ -19,31 +20,31 @@ export default function VolunteerDashboard() {
   const [certificatesCount, setCertificatesCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    Promise.all([fetchTasks(), fetchCertificates()]);
-  }, []);
-
-  const fetchTasks = async () => {
+  const fetchDashboardData = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
-      const res = await api.get('/tasks/board');
-      if (res.success) setBoard(res.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchCertificates = async () => {
-    try {
-      const res = await api.get('/training/certificates/me');
-      if (res.success && Array.isArray(res.data)) {
-        setCertificatesCount(res.data.length);
+      const [tasksRes, certsRes] = await Promise.all([
+        api.get('/tasks/board').catch(() => null),
+        api.get('/training/certificates/me').catch(() => null)
+      ]);
+      if (tasksRes && tasksRes.success) setBoard(tasksRes.data);
+      if (certsRes && certsRes.success && Array.isArray(certsRes.data)) {
+        setCertificatesCount(certsRes.data.length);
       }
     } catch (err) {
-      // certificates count stays 0 if unavailable
+      if (!isSilent) console.error(err);
+    } finally {
+      if (!isSilent) setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  // Silent auto refresh every 10 seconds
+  useAutoRefresh(fetchDashboardData, 10000);
+
 
   if (loading) {
     return (

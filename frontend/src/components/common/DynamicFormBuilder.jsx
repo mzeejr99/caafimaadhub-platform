@@ -270,49 +270,94 @@ export default function DynamicFormBuilder({
 
     const fieldError = touched[field.name] ? errors[field.name] : '';
     const isFieldTouched = touched[field.name];
-    const val = formData[field.name] !== undefined ? formData[field.name] : '';
+    const val = formData[field.name] !== undefined && formData[field.name] !== null ? formData[field.name] : '';
     const hasValue = Array.isArray(val) ? val.length > 0 : String(val).trim() !== '';
     const isValid = isFieldTouched && !fieldError && hasValue;
     const isInvalid = !!fieldError;
 
-    // Border and Glow Colors
-    const borderClass = isInvalid
-      ? 'border-red-500 ring-1 ring-red-500/30 bg-red-50/20 dark:bg-red-950/20'
-      : isValid
-      ? 'border-emerald-500 ring-1 ring-emerald-500/30 bg-emerald-50/20 dark:bg-emerald-950/20'
-      : 'border-slate-300 dark:border-slate-700/80 hover:border-slate-400 dark:hover:border-slate-600 focus-within:border-teal-600 dark:focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/20 bg-white dark:bg-slate-900';
+    // Resolve dynamic options (e.g. cascading districts)
+    const rawOptions = typeof field.options === 'function' ? field.options(formData) : (field.options || []);
+    const optionsList = Array.isArray(rawOptions) ? rawOptions : [];
 
-    const iconBg = isInvalid
-      ? 'bg-red-50 dark:bg-red-950/40 text-red-500 border-red-200 dark:border-red-800'
+    // Is field currently focused
+    const isFocused = touched[`${field.name}_focus`];
+    const isFloated = field.type === 'select' || isFocused || hasValue || field.type === 'date';
+
+    // Border and Glow Colors matching Google Outlined Field
+    const borderClass = isInvalid
+      ? 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-50/10 dark:bg-rose-950/10'
       : isValid
-      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
-      : 'bg-slate-50 dark:bg-slate-800/80 text-teal-600 dark:text-teal-400 border-slate-200 dark:border-slate-700/80';
+      ? 'border-emerald-500/80 ring-1 ring-emerald-500/20 bg-emerald-50/10 dark:bg-emerald-950/10'
+      : isFocused
+      ? 'border-teal-600 dark:border-teal-400 ring-2 ring-teal-500/20 bg-white dark:bg-slate-900'
+      : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-slate-400 dark:hover:border-slate-600';
+
+    const labelColor = isInvalid
+      ? 'text-rose-500 font-bold'
+      : isValid
+      ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+      : isFocused
+      ? 'text-teal-600 dark:text-teal-400 font-bold'
+      : 'text-slate-400 dark:text-slate-400 font-normal';
+
+    const iconColor = isInvalid
+      ? 'text-rose-500'
+      : isValid
+      ? 'text-emerald-500'
+      : isFocused
+      ? 'text-teal-600 dark:text-teal-400'
+      : 'text-slate-400 dark:text-slate-500';
+
+    const effectiveLabel = field.label || field.placeholder;
+    const defaultSelectPlaceholder = field.placeholder || (language === 'so' ? '-- Dooro mid --' : '-- Select option --');
 
     return (
-      <div key={field.name} className={`space-y-1.5 ${field.colSpan ? `col-span-${field.colSpan}` : ''}`}>
-        {/* UPPERCASE BOLD LABEL */}
-        <label htmlFor={field.name} className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-          {field.label} {field.required && <span className="text-rose-500 font-extrabold">*</span>}
-        </label>
-
+      <div key={field.name} className={`relative pt-1.5 ${field.colSpan ? `col-span-${field.colSpan}` : ''}`}>
+        
         {field.type === 'select' ? (
-          <div className={`flex items-center rounded-xl border transition-all duration-150 overflow-hidden shadow-xs ${borderClass}`}>
-            <div className={`flex items-center justify-center w-11 h-11 shrink-0 border-r ${iconBg}`}>
-              {renderIcon(field.icon || 'globe')}
-            </div>
+          <div className={`relative flex items-center rounded-xl border transition-all duration-200 shadow-2xs ${borderClass}`}>
+            
+            {/* Floating Outline Label (Always notched on border for selects) */}
+            {effectiveLabel && (
+              <label
+                htmlFor={field.name}
+                className={`absolute -top-2.5 left-3 px-1.5 rounded-md bg-white dark:bg-slate-900 text-[11px] leading-none tracking-wider pointer-events-none transition-all duration-150 select-none z-10 ${labelColor}`}
+              >
+                <span>{effectiveLabel}</span>
+                {field.required && <span className="text-rose-500 ml-0.5 font-bold">*</span>}
+              </label>
+            )}
+
+            {field.icon && (
+              <div className={`pl-3 pr-1 flex items-center justify-center shrink-0 pointer-events-none transition-colors ${iconColor}`}>
+                {renderIcon(field.icon)}
+              </div>
+            )}
+
             <select
               id={field.name}
               name={field.name}
               value={val}
-              onChange={(e) => handleFieldChange(field.name, e.target.value, field)}
-              onBlur={() => handleBlur(field)}
+              onChange={(e) => {
+                const nextVal = e.target.value;
+                handleFieldChange(field.name, nextVal, field);
+                // If region changed, clear district if invalid
+                if (field.name === 'region' && formData.district) {
+                  handleFieldChange('district', '', { name: 'district' });
+                }
+              }}
+              onFocus={() => setTouched(prev => ({ ...prev, [`${field.name}_focus`]: true }))}
+              onBlur={() => {
+                setTouched(prev => ({ ...prev, [`${field.name}_focus`]: false }));
+                handleBlur(field);
+              }}
               disabled={field.disabled || loading}
-              className="flex-1 bg-transparent text-sm text-slate-900 dark:text-slate-100 px-3.5 py-2.5 focus:outline-none cursor-pointer disabled:opacity-50"
+              className={`w-full py-3 ${field.icon ? 'pl-2' : 'pl-3.5'} pr-9 text-sm bg-transparent text-slate-900 dark:text-white appearance-none focus:outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               <option value="" className="bg-white dark:bg-slate-900 text-slate-400">
-                {field.placeholder || (language === 'so' ? '-- Dooro mid --' : '-- Select option --')}
+                {defaultSelectPlaceholder}
               </option>
-              {field.options?.map((opt, i) => {
+              {optionsList.map((opt, i) => {
                 const optVal = typeof opt === 'object' ? opt.value : opt;
                 const optLabel = typeof opt === 'object' ? opt.label : opt;
                 return (
@@ -322,28 +367,51 @@ export default function DynamicFormBuilder({
                 );
               })}
             </select>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-slate-500">
+              <ChevronDown className="w-4 h-4" />
+            </div>
           </div>
         ) : field.type === 'textarea' ? (
-          <div className={`flex items-stretch rounded-xl border transition-all duration-150 overflow-hidden shadow-xs ${borderClass}`}>
-            <div className={`flex items-start justify-center w-11 pt-3 shrink-0 border-r ${iconBg}`}>
-              {renderIcon(field.icon || 'file')}
-            </div>
+          <div className={`relative rounded-xl border transition-all duration-200 shadow-2xs ${borderClass}`}>
+            
+            {/* Floating Outline Label */}
+            {effectiveLabel && (
+              <label
+                htmlFor={field.name}
+                className={`absolute pointer-events-none transition-all duration-150 select-none z-10 ${
+                  isFloated
+                    ? `-top-2.5 left-3 px-1.5 rounded-md bg-white dark:bg-slate-900 text-[11px] leading-none tracking-wider ${labelColor}`
+                    : `top-3.5 left-3.5 text-sm leading-normal ${labelColor}`
+                }`}
+              >
+                <span>{effectiveLabel}</span>
+                {field.required && <span className="text-rose-500 ml-0.5 font-bold">*</span>}
+              </label>
+            )}
+
             <textarea
               id={field.name}
               name={field.name}
               rows={field.rows || 3}
               value={val}
-              placeholder={field.placeholder}
+              placeholder={isFloated && field.placeholder !== effectiveLabel ? field.placeholder : ''}
               onChange={(e) => handleFieldChange(field.name, e.target.value, field)}
-              onBlur={() => handleBlur(field)}
+              onFocus={() => setTouched(prev => ({ ...prev, [`${field.name}_focus`]: true }))}
+              onBlur={() => {
+                setTouched(prev => ({ ...prev, [`${field.name}_focus`]: false }));
+                handleBlur(field);
+              }}
               disabled={field.disabled || loading}
-              className="flex-1 bg-transparent text-sm text-slate-900 dark:text-slate-100 p-3 focus:outline-none resize-none placeholder-slate-400 dark:placeholder-slate-500 disabled:opacity-50"
+              className="w-full p-3.5 pt-4 text-sm bg-transparent text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none resize-y min-h-[80px] disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
         ) : field.type === 'checkbox-group' ? (
-          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/60 space-y-2">
+          <div className="p-4 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/60 space-y-2.5">
+            <span className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+              {field.label} {field.required && <span className="text-rose-500 font-bold">*</span>}
+            </span>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {field.options?.map((opt, i) => {
+              {optionsList.map((opt, i) => {
                 const optVal = typeof opt === 'object' ? opt.value : opt;
                 const optLabel = typeof opt === 'object' ? opt.label : opt;
                 const isChecked = Array.isArray(val) && val.includes(optVal);
@@ -374,56 +442,87 @@ export default function DynamicFormBuilder({
             </div>
           </div>
         ) : (
-          <div className={`flex items-center rounded-xl border transition-all duration-150 overflow-hidden shadow-xs ${borderClass}`}>
-            <div className={`flex items-center justify-center w-11 h-11 shrink-0 border-r ${iconBg}`}>
-              {renderIcon(field.icon || (field.type === 'email' ? 'mail' : field.type === 'tel' ? 'phone' : field.type === 'password' ? 'lock' : 'user'))}
-            </div>
+          <div className={`relative flex items-center rounded-xl border transition-all duration-200 shadow-2xs ${borderClass}`}>
+            
+            {/* Floating Outline Label */}
+            {effectiveLabel && (
+              <label
+                htmlFor={field.name}
+                className={`absolute pointer-events-none transition-all duration-150 select-none z-10 ${
+                  isFloated
+                    ? `-top-2.5 left-3 px-1.5 rounded-md bg-white dark:bg-slate-900 text-[11px] leading-none tracking-wider ${labelColor}`
+                    : `top-1/2 -translate-y-1/2 ${field.icon ? 'left-10' : 'left-3.5'} text-sm leading-normal ${labelColor}`
+                }`}
+              >
+                <span>{effectiveLabel}</span>
+                {field.required && <span className="text-rose-500 ml-0.5 font-bold">*</span>}
+              </label>
+            )}
+
+            {field.icon && (
+              <div className={`pl-3 pr-1 flex items-center justify-center shrink-0 pointer-events-none transition-colors ${iconColor}`}>
+                {renderIcon(field.icon)}
+              </div>
+            )}
+
             <input
               id={field.name}
               name={field.name}
               type={field.type === 'password' ? (showPasswordMap[field.name] ? 'text' : 'password') : field.type || 'text'}
               value={val}
-              placeholder={field.placeholder}
               onChange={(e) => handleFieldChange(field.name, e.target.value, field)}
-              onBlur={() => handleBlur(field)}
+              onFocus={() => setTouched(prev => ({ ...prev, [`${field.name}_focus`]: true }))}
+              onBlur={() => {
+                setTouched(prev => ({ ...prev, [`${field.name}_focus`]: false }));
+                handleBlur(field);
+              }}
               disabled={field.disabled || loading}
-              className="flex-1 bg-transparent text-sm text-slate-900 dark:text-slate-100 px-3.5 py-2.5 focus:outline-none placeholder-slate-400 dark:placeholder-slate-500 disabled:opacity-50"
+              autoComplete={field.autoComplete || (field.type === 'password' ? 'new-password' : (mode === 'create' ? 'off' : undefined))}
+              data-lpignore="true"
+              data-1p-ignore="true"
+              className={`w-full py-3 text-sm bg-transparent text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
+                field.icon ? 'pl-2' : 'pl-3.5'
+              } ${field.type === 'password' || isValid ? 'pr-10' : 'pr-3.5'}`}
             />
-            {field.type === 'password' && (
+
+            {field.type === 'password' ? (
               <button
                 type="button"
+                tabIndex={-1}
                 onClick={() => setShowPasswordMap(p => ({ ...p, [field.name]: !p[field.name] }))}
-                className="px-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                title={showPasswordMap[field.name] ? 'Hide password' : 'Show password'}
               >
                 {showPasswordMap[field.name] ? <EyeOff className="w-4 h-4 text-teal-600 dark:text-teal-400" /> : <Eye className="w-4 h-4" />}
               </button>
-            )}
-            {isValid && field.type !== 'password' && (
-              <div className="px-3 text-emerald-500">
+            ) : isValid ? (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-emerald-500 dark:text-emerald-400">
                 <CheckCircle2 className="w-4 h-4" />
               </div>
-            )}
+            ) : null}
           </div>
         )}
 
         {/* Error message */}
         {fieldError && (
-          <div className="flex items-center gap-1.5 text-xs text-rose-500 dark:text-rose-400 font-semibold mt-1">
+          <div className="flex items-center gap-1.5 text-xs text-rose-500 dark:text-rose-400 font-semibold mt-1 px-1 animate-fadeIn">
             <AlertCircle className="w-3.5 h-3.5 shrink-0" />
             <span>{fieldError}</span>
           </div>
-        )}
-
-        {/* Helper text */}
-        {field.helperText && !fieldError && (
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">{field.helperText}</p>
         )}
       </div>
     );
   };
 
   return (
-    <form onSubmit={handleFormSubmit} className={`space-y-6 ${className}`}>
+    <form onSubmit={handleFormSubmit} autoComplete="off" noValidate className={`space-y-6 ${className}`}>
+      {/* Hidden dummy fields to prevent browser auto-injection */}
+      {mode === 'create' && (
+        <div style={{ display: 'none' }} aria-hidden="true">
+          <input type="text" name="prevent_autofill_user" tabIndex={-1} autoComplete="off" />
+          <input type="password" name="prevent_autofill_pwd" tabIndex={-1} autoComplete="new-password" />
+        </div>
+      )}
       {error && (
         <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center gap-3">
           <AlertCircle className="w-5 h-5 shrink-0 text-rose-500" />

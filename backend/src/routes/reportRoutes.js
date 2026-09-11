@@ -6,6 +6,7 @@ const { requirePermission, requireScopeAccess } = require('../middleware/rbac');
 
 router.use(authenticateToken);
 
+router.get('/export', requirePermission('reports.view'), requireScopeAccess, (req, res, next) => reportController.exportReport(req, res, next));
 router.get('/volunteers', requirePermission('reports.view'), requireScopeAccess, (req, res, next) => reportController.getVolunteersReport(req, res, next));
 router.get('/campaigns', requirePermission('reports.view'), (req, res, next) => reportController.getCampaignsReport(req, res, next));
 router.get('/field-activity', requirePermission('reports.view'), (req, res, next) => reportController.getFieldActivityReport(req, res, next));

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useNotification } from '../../contexts/NotificationContext';
@@ -11,6 +11,8 @@ import Modal from '../../components/common/Modal';
 import { Input, Select, Textarea } from '../../components/common/Input';
 import api from '../../services/api';
 import { validateNumberOnly, validateFutureOrTodayDate } from '../../utils/validation';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
+
 
 export default function CampaignsListPage() {
   const { t, language } = useLanguage();
@@ -68,26 +70,30 @@ export default function CampaignsListPage() {
     { value: 'CANCELLED', label: language === 'so' ? 'La Joojiyay (Cancelled)' : 'Cancelled' }
   ];
 
-  useEffect(() => {
-    fetchCampaigns();
-  }, [typeFilter]);
-
-  const fetchCampaigns = async () => {
-    setLoading(true);
+  const fetchCampaigns = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const res = await api.get('/campaigns', {
         type: typeFilter || undefined,
         search: search || undefined
       });
-      if (res.success) {
+      if (res && res.success) {
         setCampaigns(res.data || []);
       }
     } catch (err) {
-      console.error(err);
+      if (!isSilent) console.error(err);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
-  };
+  }, [typeFilter, search]);
+
+  useEffect(() => {
+    fetchCampaigns();
+  }, [fetchCampaigns]);
+
+  // Silent auto refresh every 15 seconds
+  useAutoRefresh(fetchCampaigns, 15000, !isAddModalOpen && !isEditModalOpen && !isDeleteModalOpen);
+
 
   // CREATE Campaign
   const handleCreate = async (e) => {

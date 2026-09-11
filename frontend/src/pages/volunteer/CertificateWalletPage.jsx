@@ -8,7 +8,7 @@ import api from '../../services/api';
 
 export default function CertificateWalletPage() {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [certificates, setCertificates] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -29,23 +29,6 @@ export default function CertificateWalletPage() {
     }
   };
 
-  const sampleCertificates = certificates.length > 0 ? certificates : [
-    {
-      id: 1,
-      certificate_code: 'CERT-SOM-2026-8942',
-      course_title: 'National Child Immunization & Cold Chain Safety',
-      score: 95,
-      issued_at: '2026-04-12'
-    },
-    {
-      id: 2,
-      certificate_code: 'CERT-SOM-2026-3401',
-      course_title: 'Community Acute Watery Diarrhea (AWD) & Cholera Response',
-      score: 100,
-      issued_at: '2026-05-01'
-    }
-  ];
-
   const handlePrint = () => {
     window.print();
   };
@@ -61,13 +44,41 @@ export default function CertificateWalletPage() {
             Official accredited digital qualifications issued by the Federal Ministry of Health Somalia
           </p>
         </div>
-        <Button variant="outline" onClick={handlePrint} icon={Printer}>
-          {t('cert_wallet.print')}
-        </Button>
+        {certificates.length > 0 && (
+          <Button variant="outline" onClick={handlePrint} icon={Printer}>
+            {t('cert_wallet.print')}
+          </Button>
+        )}
       </div>
 
+      {loading ? (
+        <div className="grid lg:grid-cols-2 gap-6 w-full">
+          {[1, 2].map(i => (
+            <div key={i} className="bg-white dark:bg-slate-900 rounded-3xl border-2 border-slate-200/50 dark:border-slate-800 shadow-xl p-8 animate-pulse">
+              <div className="h-6 bg-slate-200 dark:bg-slate-800 rounded w-3/4 mb-4"></div>
+              <div className="h-8 bg-slate-200 dark:bg-slate-800 rounded w-1/2 mb-4"></div>
+              <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-full mb-2"></div>
+              <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-2/3"></div>
+            </div>
+          ))}
+        </div>
+      ) : certificates.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
+            <Award className="w-8 h-8 text-slate-400 dark:text-slate-500" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-1">
+            {t('cert_wallet.no_certificates') || (language === 'so' ? 'Wali shahaado kuguma jirto' : 'No certificates yet')}
+          </h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md">
+            {t('cert_wallet.no_certificates_desc') || (language === 'so'
+              ? 'Marka aad dhammayso tababar oo aad gudbo imtixaanka, shahaadadaada halkan ayay ka soo muuqan doontaa.'
+              : 'Once you complete a training course and pass the assessment, your certificates will appear here.')}
+          </p>
+        </div>
+      ) : (
       <div className="grid lg:grid-cols-2 gap-6 w-full">
-        {sampleCertificates.map((cert) => (
+        {certificates.map((cert) => (
           <div
             key={cert.id}
             className="bg-white dark:bg-slate-900 rounded-3xl border-2 border-teal-800/20 dark:border-teal-700/40 shadow-xl p-8 relative overflow-hidden bg-gradient-to-br from-teal-50/40 via-white to-amber-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-teal-950/30 flex flex-col justify-between"
@@ -134,6 +145,7 @@ export default function CertificateWalletPage() {
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }

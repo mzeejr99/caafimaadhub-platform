@@ -5,16 +5,37 @@ import so from '../i18n/so.json';
 const translations = { en, so };
 
 const LanguageContext = createContext();
+const LANG_STORAGE_KEY = 'caafimaad_lang_v6';
 
 export function LanguageProvider({ children }) {
   const [language, setLanguage] = useState(() => {
-    return localStorage.getItem('caafimaad_lang_v2') || 'so';
+    try {
+      // Clean up all legacy keys
+      ['caafimaad_lang', 'caafimaad_lang_v2', 'caafimaad_lang_v3', 'caafimaad_lang_v4', 'caafimaad_lang_v5'].forEach(k => {
+        try { localStorage.removeItem(k); } catch (e) {}
+      });
+
+      const saved = localStorage.getItem(LANG_STORAGE_KEY);
+      if (saved === 'en' || saved === 'so') {
+        return saved;
+      }
+    } catch (e) {
+      console.error('Error reading language from localStorage', e);
+    }
+    // Strict Default to Somali (so)
+    return 'so';
   });
 
   useEffect(() => {
-    localStorage.setItem('caafimaad_lang_v2', language);
+    try {
+      localStorage.setItem(LANG_STORAGE_KEY, language);
+    } catch (e) {
+      console.error('Error saving language to localStorage', e);
+    }
     document.documentElement.lang = language;
   }, [language]);
+
+  const isSomali = language === 'so';
 
   const t = (keyPath, fallback = '') => {
     const keys = keyPath.split('.');
@@ -83,7 +104,7 @@ export function LanguageProvider({ children }) {
   };
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, toggleLanguage, t, formatRole, formatStatus }}>
+    <LanguageContext.Provider value={{ language, setLanguage, toggleLanguage, isSomali, t, formatRole, formatStatus }}>
       {children}
     </LanguageContext.Provider>
   );
@@ -92,3 +113,4 @@ export function LanguageProvider({ children }) {
 export function useLanguage() {
   return useContext(LanguageContext);
 }
+

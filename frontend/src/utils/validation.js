@@ -155,3 +155,53 @@ export function validateFutureOrTodayDate(value, fieldName = 'Taariikhda', lang 
   }
   return { isValid: true, message: '' };
 }
+
+/**
+ * Validates date of birth to ensure person is at least 18 years old.
+ * Rejects any date of birth younger than 18 or in the future.
+ */
+export function validateAge18Plus(value, lang = 'so', fieldName = 'Taariikhda dhalashada') {
+  if (!value || String(value).trim() === '') {
+    return {
+      isValid: false,
+      message: lang === 'so' ? `${fieldName} waa qasab (fadlan dooro)` : `${fieldName} is required`
+    };
+  }
+
+  const birthDate = new Date(value);
+  if (isNaN(birthDate.getTime())) {
+    return {
+      isValid: false,
+      message: lang === 'so' ? 'Taariikhda dhalashadu ma saxna' : 'Invalid date of birth'
+    };
+  }
+
+  const today = new Date();
+  if (birthDate > today) {
+    return {
+      isValid: false,
+      message: lang === 'so'
+        ? 'Taariikhda dhalashada ma noqon karto taariikh mustaqbal ah'
+        : 'Date of birth cannot be in the future'
+    };
+  }
+
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+
+  if (age < 18) {
+    return {
+      isValid: false,
+      age,
+      message: lang === 'so'
+        ? `Da'daadu waa ${age} sano. Waa in aad jirtaa ugu yaraan 18 sano (qof ka yar 18 sano lama ogola)`
+        : `Age is ${age}. You must be at least 18 years old to register (under 18 not allowed)`
+    };
+  }
+
+  return { isValid: true, age, message: '' };
+}
+

@@ -26,7 +26,7 @@ class ReportService {
   /**
    * Generate Volunteer Report
    */
-  async getVolunteersReport({ regionId, status }) {
+  async getVolunteersReport({ regionId, status, startDate, endDate } = {}) {
     let whereClauses = [];
     let params = [];
     if (regionId) {
@@ -36,6 +36,14 @@ class ReportService {
     if (status) {
       whereClauses.push('v.status = ?');
       params.push(status);
+    }
+    if (startDate) {
+      whereClauses.push('v.registration_date >= ?');
+      params.push(startDate);
+    }
+    if (endDate) {
+      whereClauses.push('v.registration_date <= ?');
+      params.push(endDate + ' 23:59:59');
     }
     const whereStr = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
@@ -59,7 +67,7 @@ class ReportService {
   /**
    * Generate Campaign Report
    */
-  async getCampaignsReport({ type, status }) {
+  async getCampaignsReport({ type, status, startDate, endDate } = {}) {
     let whereClauses = [];
     let params = [];
     if (type) {
@@ -69,6 +77,14 @@ class ReportService {
     if (status) {
       whereClauses.push('c.status = ?');
       params.push(status);
+    }
+    if (startDate) {
+      whereClauses.push('c.start_date >= ?');
+      params.push(startDate);
+    }
+    if (endDate) {
+      whereClauses.push('c.end_date <= ?');
+      params.push(endDate);
     }
     const whereStr = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
@@ -152,6 +168,66 @@ class ReportService {
        LEFT JOIN inventory_locations loc ON loc.id = i.location_id
        ${whereStr}
        ORDER BY i.category, i.name`,
+      params
+    );
+  }
+
+  /**
+   * Generate Emergencies & Outbreaks Report
+   */
+  async getEmergenciesReport({ startDate, endDate } = {}) {
+    let whereClauses = [];
+    let params = [];
+    if (startDate) {
+      whereClauses.push('e.created_at >= ?');
+      params.push(startDate);
+    }
+    if (endDate) {
+      whereClauses.push('e.created_at <= ?');
+      params.push(endDate + ' 23:59:59');
+    }
+    const whereStr = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+    return await db.query(
+      `SELECT e.report_code, e.emergency_type, e.severity, e.description,
+              e.suspected_cases_count, r.name AS region, d.name AS district,
+              e.community_name, e.reporter_type, e.reporter_name, e.reporter_phone,
+              e.status, e.action_taken, e.created_at
+       FROM emergency_reports e
+       LEFT JOIN regions r ON r.id = e.region_id
+       LEFT JOIN districts d ON d.id = e.district_id
+       ${whereStr}
+       ORDER BY e.created_at DESC`,
+      params
+    );
+  }
+
+  /**
+   * Generate Community Feedback Report
+   */
+  async getFeedbackReport({ startDate, endDate } = {}) {
+    let whereClauses = [];
+    let params = [];
+    if (startDate) {
+      whereClauses.push('f.created_at >= ?');
+      params.push(startDate);
+    }
+    if (endDate) {
+      whereClauses.push('f.created_at <= ?');
+      params.push(endDate + ' 23:59:59');
+    }
+    const whereStr = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+    return await db.query(
+      `SELECT f.ticket_number, f.category, f.description,
+              r.name AS region, d.name AS district, f.location_name,
+              f.reporter_name, f.reporter_phone, f.reporter_email,
+              f.status, f.admin_notes, f.created_at
+       FROM feedback f
+       LEFT JOIN regions r ON r.id = f.region_id
+       LEFT JOIN districts d ON d.id = f.district_id
+       ${whereStr}
+       ORDER BY f.created_at DESC`,
       params
     );
   }

@@ -15,9 +15,9 @@ async function reseedAll() {
   const sqliteSchemaPath = path.join(__dirname, 'src/database/sqliteSchema.sql');
   const seedsPath = path.join(__dirname, '../database/seeds.sql');
 
-  const superPasswordHash = bcrypt.hashSync('super#123', 10);
+  const passwordHash = bcrypt.hashSync('super#123', 10);
   let seedsSql = fs.readFileSync(seedsPath, 'utf8');
-  let processedSeeds = seedsSql.replace(/\$2a\$10\$[a-zA-Z0-9.\/]+/g, superPasswordHash);
+  let processedSeeds = seedsSql.replace(/\$2a\$10\$[a-zA-Z0-9.\/]+/g, passwordHash);
 
   if (clientType === 'sqlite') {
     const sqliteDb = db.getSqliteDb();
@@ -62,25 +62,21 @@ async function reseedAll() {
     console.log('-> MySQL database successfully reseeded with authentic real data!');
   }
 
-  // Ensure ONLY superadmin@caafimaadhub.so exists
+  // Ensure ONLY superadmin@caafimaadhub.so is active and present
   try {
     const hash = bcrypt.hashSync('super#123', 10);
-    // Delete any users that are not superadmin@caafimaadhub.so
-    await db.execute('DELETE FROM users WHERE LOWER(email) != ?', ['superadmin@caafimaadhub.so']);
-    
+    // Remove any legacy users except superadmin
+    await db.execute("DELETE FROM users WHERE email != 'superadmin@caafimaadhub.so'");
+    await db.execute("DELETE FROM user_roles WHERE user_id NOT IN (SELECT id FROM users)");
+
     const existing = await db.getOne('SELECT id FROM users WHERE LOWER(email) = ?', ['superadmin@caafimaadhub.so']);
     if (existing) {
       await db.execute('UPDATE users SET password_hash = ?, is_active = 1, is_suspended = 0 WHERE id = ?', [hash, existing.id]);
-      if (clientType === 'sqlite') {
-        await db.execute('INSERT OR IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)', [existing.id, 'role-super-admin']);
-      } else {
-        await db.execute('INSERT IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)', [existing.id, 'role-super-admin']);
-      }
     } else {
       const userId = 'usr-superadmin-01';
       await db.execute(
-        'INSERT INTO users (id, organization_id, region_id, district_id, full_name, email, phone, password_hash, preferred_language, is_active, is_suspended, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, CURRENT_TIMESTAMP)',
-        [userId, 'org-fmoh-001', 'reg-banadir', 'dist-hodan', 'Super Administrator', 'superadmin@caafimaadhub.so', '+252 61 5111111', hash, 'so']
+        'INSERT INTO users (id, organization_id, region_id, district_id, full_name, email, password_hash, preferred_language, is_active, is_suspended, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 0, CURRENT_TIMESTAMP)',
+        [userId, 'org-fmoh-001', 'reg-banadir', 'dist-hodan', 'Super Administrator', 'superadmin@caafimaadhub.so', hash, 'so']
       );
       if (clientType === 'sqlite') {
         await db.execute('INSERT OR IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)', [userId, 'role-super-admin']);
@@ -88,24 +84,20 @@ async function reseedAll() {
         await db.execute('INSERT IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)', [userId, 'role-super-admin']);
       }
     }
-    console.log('-> superadmin@caafimaadhub.so ensured with password super#123!');
+    console.log('-> Only superadmin@caafimaadhub.so ensured in database with password super#123!');
   } catch (err) {
     console.error('Error ensuring superadmin@caafimaadhub.so:', err.message);
   }
 
-  // Verify
+  // Verify inventory items
   const items = await db.query('SELECT COUNT(*) as count FROM inventory_items');
   const campaigns = await db.query('SELECT COUNT(*) as count FROM campaigns');
-  const allUsers = await db.query('SELECT id, email, full_name FROM users');
+  const users = await db.query('SELECT COUNT(*) as count FROM users');
   console.log(`\nVerification:`);
-  console.log(`  - Total Users: ${allUsers.length}`);
-  console.table(allUsers);
+  console.log(`  - Users: ${users[0].count}`);
   console.log(`  - Campaigns: ${campaigns[0].count}`);
   console.log(`  - Medical Inventory Items: ${items[0].count}`);
   console.log('\n=== RESEED COMPLETE 100% ===\n');
 }
 
-reseedAll().then(() => process.exit(0)).catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+reseedAll().catch(console.error);

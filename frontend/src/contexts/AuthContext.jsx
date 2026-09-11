@@ -4,13 +4,29 @@ import api from '../services/api';
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(() => localStorage.getItem('caafimaad_token'));
-  const [loading, setLoading] = useState(true);
+  const [token, setToken] = useState(() => {
+    try {
+      return localStorage.getItem('caafimaad_token') || null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const [user, setUser] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('caafimaad_user');
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const [loading, setLoading] = useState(!user && !!token);
 
   const fetchCurrentUser = async (authToken) => {
     if (!authToken) {
       setUser(null);
+      localStorage.removeItem('caafimaad_user');
       setLoading(false);
       return;
     }
@@ -19,15 +35,15 @@ export function AuthProvider({ children }) {
       const data = await api.get('/auth/me');
       if (data && data.success && data.data) {
         setUser(data.data);
-      } else {
-        logout();
+        localStorage.setItem('caafimaad_user', JSON.stringify(data.data));
       }
     } catch (err) {
-      console.error('[AuthContext] Fetch user failed:', err);
-      // Only logout if 401 Unauthorized
+      console.error('[AuthContext] Fetch user error:', err);
+      // Only logout if 401 Unauthorized from server
       if (err.status === 401) {
         logout();
       }
+      // If offline or network error, preserve cached user so PWA works seamlessly offline!
     } finally {
       setLoading(false);
     }
@@ -49,6 +65,7 @@ export function AuthProvider({ children }) {
 
     const { accessToken, refreshToken, user: userData } = data.data;
     localStorage.setItem('caafimaad_token', accessToken);
+    localStorage.setItem('caafimaad_user', JSON.stringify(userData));
     if (refreshToken) {
       localStorage.setItem('caafimaad_refresh_token', refreshToken);
     }
@@ -70,6 +87,7 @@ export function AuthProvider({ children }) {
   const logout = () => {
     localStorage.removeItem('caafimaad_token');
     localStorage.removeItem('caafimaad_refresh_token');
+    localStorage.removeItem('caafimaad_user');
     setToken(null);
     setUser(null);
   };

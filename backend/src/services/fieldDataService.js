@@ -57,20 +57,70 @@ class FieldDataService {
    * Ingest single field submission
    */
   async submitFieldData(data, volunteerId) {
-    const {
-      localId, taskId, campaignId, fieldFormId, submissionDatetime,
-      latitude, longitude, accuracyMeters, locationDescription, payloadData
-    } = data;
+    const rawFormId = data.fieldFormId || data.field_form_id || data.formId || data.form_id;
+    let payloadData = data.payloadData || data.payload_data || data.data || data.formData || data.form_data || data;
 
-    if (!fieldFormId || !payloadData) {
+    if (!payloadData || (typeof payloadData === 'object' && Object.keys(payloadData).length === 0)) {
       throw { status: 400, message: 'Field form ID and form payload data are required' };
+    }
+
+    // Resolve real form ID from field_forms table if possible
+    let form = null;
+    if (rawFormId && rawFormId !== 1 && rawFormId !== '1') {
+      form = await db.getOne('SELECT id FROM field_forms WHERE id = ? OR code = ?', [rawFormId, rawFormId]);
+    }
+    if (!form) {
+      form = await db.getOne('SELECT id FROM field_forms WHERE is_active = 1 LIMIT 1');
+    }
+    const fieldFormId = form ? form.id : (rawFormId || 'form-core-01');
+
+    const localId = data.localId || data.local_id || null;
+    const taskId = data.taskId || data.task_id || null;
+    const campaignId = data.campaignId || data.campaign_id || null;
+    const latitude = data.latitude !== undefined ? data.latitude : null;
+    const longitude = data.longitude !== undefined ? data.longitude : null;
+    const accuracyMeters = data.accuracyMeters || data.accuracy || data.accuracy_meters || null;
+    const locationDescription = data.locationDescription || data.location_description || null;
+    const submissionDatetime = data.submissionDatetime || data.submission_datetime || null;
+
+    // Resolve campaign ID if provided
+    let effectiveCampaignId = campaignId;
+    if (campaignId) {
+      const camp = await db.getOne('SELECT id FROM campaigns WHERE id = ? OR code = ?', [campaignId, campaignId]);
+      effectiveCampaignId = camp ? camp.id : null;
+    }
+
+    // Resolve task ID if provided
+    let effectiveTaskId = taskId;
+    if (taskId) {
+      const t = await db.getOne('SELECT id FROM tasks WHERE id = ?', [taskId]);
+      effectiveTaskId = t ? t.id : null;
+    }
+
+    // Resolve volunteer ID (user_id -> volunteers.id)
+    let effectiveVolunteerId = volunteerId;
+    let vol = await db.getOne('SELECT id FROM volunteers WHERE id = ? OR user_id = ?', [volunteerId, volunteerId]);
+    if (!vol && volunteerId) {
+      const volId = uuid();
+      const volCode = `VOL-${Date.now().toString().slice(-6)}`;
+      await db.execute(
+        `INSERT INTO volunteers (
+          id, user_id, volunteer_id, gender, region_id, district_id,
+          availability_status, status, profile_completed, registration_date
+        ) VALUES (?, ?, ?, 'OTHER', 'reg-banadir', 'dist-hodan', 'AVAILABLE', 'ACTIVE', 1, CURRENT_TIMESTAMP)`,
+        [volId, volunteerId, volCode]
+      ).catch(() => {});
+      vol = await db.getOne('SELECT id FROM volunteers WHERE id = ? OR user_id = ?', [volunteerId, volunteerId]);
+    }
+    if (vol) {
+      effectiveVolunteerId = vol.id;
     }
 
     // Check duplicate local_id if sent from PWA sync
     if (localId) {
       const existing = await db.getOne(
         `SELECT id, review_status, sync_status FROM field_submissions WHERE local_id = ? AND volunteer_id = ?`,
-        [localId, volunteerId]
+        [localId, effectiveVolunteerId]
       );
       if (existing) {
         return {
@@ -106,22 +156,44 @@ class FieldDataService {
         payload_data, summary_metrics, sync_status, review_status, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SYNCED', 'PENDING', CURRENT_TIMESTAMP)`,
       [
-        id, localId || null, volunteerId, taskId || null, campaignId || null, fieldFormId,
+        id, localId || null, effectiveVolunteerId, effectiveTaskId, effectiveCampaignId, fieldFormId,
         subTime, latitude || null, longitude || null, accuracyMeters || null, locationDescription || null,
         payloadStr, JSON.stringify(summary)
       ]
     );
 
     // If linked to a task, update task assignment status to SUBMITTED
-    if (taskId) {
+    if (effectiveTaskId) {
       await db.execute(
         `UPDATE task_assignments SET status = 'SUBMITTED', completed_at = CURRENT_TIMESTAMP WHERE task_id = ? AND volunteer_id = ?`,
-        [taskId, volunteerId]
+        [effectiveTaskId, effectiveVolunteerId]
       );
       await db.execute(
         `UPDATE tasks SET status = 'SUBMITTED', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-        [taskId]
+        [effectiveTaskId]
       );
+    }
+
+    // Real-time admin notification for new field report
+    try {
+      const adminUsers = await db.query(
+        `SELECT DISTINCT u.id FROM users u
+         JOIN user_roles ur ON ur.user_id = u.id
+         JOIN roles r ON r.id = ur.role_id
+         WHERE r.name IN ('SUPER_ADMIN', 'ADMIN') OR u.role IN ('Superadmin', 'Admin')`
+      );
+      const householdName = payloadObj.householdHead || payloadObj.household_head || payloadObj.head_of_household || 'Qoys Cusub';
+      for (const adm of adminUsers) {
+        await notificationService.createNotification({
+          userId: adm.id,
+          title: 'Warbixin Cusub oo Goobta ah / New Field Report',
+          message: `Warbixin cusub ayaa laga soo xareeyay: ${householdName}.`,
+          type: 'FIELD_REPORT_SUBMITTED',
+          actionUrl: `/admin/field-data`
+        });
+      }
+    } catch (notifErr) {
+      console.warn('[FieldDataService] Notification warning:', notifErr.message);
     }
 
     return {

@@ -182,11 +182,11 @@ export default function SchedulePage() {
   };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-6 w-full">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-3">
-            <CalendarDays className="w-7 h-7 text-teal-700 dark:text-teal-400" />
+            <CalendarDays className="w-7 h-7 text-sky-600 dark:text-sky-400" />
             {canFilterVolunteers ? t('nav.schedules') : t('nav.my_schedule')}
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">

@@ -20,8 +20,8 @@ export default function Sidebar({ isOpen, onClose }) {
   const navLinkClass = ({ isActive }) =>
     `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${
       isActive
-        ? 'bg-[#10b981] text-white font-bold shadow-lg shadow-emerald-950/40'
-        : 'text-emerald-100/80 hover:bg-emerald-800/40 hover:text-white'
+        ? 'bg-[#0ea5e9] text-white font-bold shadow-lg shadow-sky-950/40'
+        : 'text-sky-100/80 hover:bg-sky-800/40 hover:text-white'
     }`;
 
   const mainMenuItems = [
@@ -128,24 +128,24 @@ export default function Sidebar({ isOpen, onClose }) {
         <div className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm lg:hidden" onClick={onClose} />
       )}
 
-      {/* Dark Forest Teal Sidebar */}
+      {/* Aqua Blue (Biyo-Biyo) Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-[#064e3b] via-[#042f2e] to-[#022c22] text-white flex flex-col shadow-2xl transition-transform duration-300 ease-in-out shrink-0 h-full border-r border-emerald-900/40 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-[#0c4a6e] via-[#082f49] to-[#0a1e33] text-white flex flex-col shadow-2xl transition-transform duration-300 ease-in-out shrink-0 h-full border-r border-sky-900/40 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         } lg:translate-x-0 lg:static lg:z-auto select-none`}
       >
         {/* Logo Header */}
-        <div className="h-16 flex items-center justify-between px-5 shrink-0 border-b border-emerald-800/40">
+        <div className="h-16 flex items-center justify-between px-5 shrink-0 border-b border-sky-800/40">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500 flex items-center justify-center text-white shadow-md shadow-emerald-950/40">
-              <Heart className="w-5 h-5 fill-white text-emerald-500" />
+            <div className="w-9 h-9 rounded-xl bg-sky-500 flex items-center justify-center text-white shadow-md shadow-sky-950/40">
+              <Heart className="w-5 h-5 fill-white text-sky-500" />
             </div>
             <div>
               <h1 className="text-base font-extrabold text-white tracking-tight leading-tight">CaafimaadHub</h1>
-              <p className="text-[10px] text-emerald-300/80 font-medium tracking-wide">{isSuperAdmin ? 'Super Admin Panel' : t('login.tagline')}</p>
+              <p className="text-[10px] text-sky-300/80 font-medium tracking-wide">{isSuperAdmin ? 'Super Admin Panel' : t('login.tagline')}</p>
             </div>
           </div>
-          <button onClick={onClose} className="lg:hidden p-1.5 text-emerald-200 hover:text-white rounded-lg">
+          <button onClick={onClose} className="lg:hidden p-1.5 text-sky-200 hover:text-white rounded-lg">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -154,7 +154,7 @@ export default function Sidebar({ isOpen, onClose }) {
         <nav className="flex-1 overflow-y-auto px-3.5 py-4 space-y-6 scrollbar-none">
           {/* MAIN MENU */}
           <div>
-            <p className="text-[10px] font-bold text-emerald-300/60 uppercase tracking-wider px-3 mb-2">
+            <p className="text-[10px] font-bold text-sky-300/60 uppercase tracking-wider px-3 mb-2">
               {t('nav_group.main_menu')}
             </p>
             <div className="space-y-1">
@@ -170,7 +170,7 @@ export default function Sidebar({ isOpen, onClose }) {
           {/* ADMINISTRATION (Super Admin Only) */}
           {isSuperAdmin && (
             <div>
-              <p className="text-[10px] font-bold text-emerald-300/60 uppercase tracking-wider px-3 mb-2">
+              <p className="text-[10px] font-bold text-sky-300/60 uppercase tracking-wider px-3 mb-2">
                 {t('nav_group.administration')}
               </p>
               <div className="space-y-1">
@@ -186,34 +186,34 @@ export default function Sidebar({ isOpen, onClose }) {
         </nav>
 
         {/* Sidebar Footer User Card */}
-        <div className="p-3.5 border-t border-emerald-900/60 shrink-0 bg-[#022c22]/80 space-y-2.5">
+        <div className="p-3.5 border-t border-sky-900/60 shrink-0 bg-[#0a1e33]/80 space-y-2.5">
           <div className="flex items-center gap-3">
             {user?.avatarUrl || user?.avatar_url || user?.profile_image_url ? (
               <img
                 src={user.avatarUrl || user.avatar_url || user.profile_image_url}
                 alt=""
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                className="w-10 h-10 rounded-full object-cover shadow-md ring-2 ring-emerald-400/40 shrink-0"
+                className="w-10 h-10 rounded-full object-cover shadow-md ring-2 ring-sky-400/40 shrink-0"
               />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-sm font-extrabold text-white shadow-md ring-2 ring-emerald-400/30 shrink-0">
+              <div className="w-10 h-10 rounded-full bg-sky-600 flex items-center justify-center text-sm font-extrabold text-white shadow-md ring-2 ring-sky-400/30 shrink-0">
                 {initial}
               </div>
             )}
             <div className="flex-1 min-w-0">
               <p className="text-xs font-bold text-white truncate">{displayName}</p>
-              <p className="text-[10px] text-emerald-300/80 truncate">{displayRole}</p>
+              <p className="text-[10px] text-sky-300/80 truncate">{displayRole}</p>
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-2 border-t border-emerald-900/60 text-[11px] text-emerald-200/80 px-1">
+          <div className="flex items-center justify-between pt-2 border-t border-sky-900/60 text-[11px] text-sky-200/80 px-1">
             <div className="flex items-center gap-2 font-semibold">
-              <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-amber-400'}`} />
-              <span className={isOnline ? 'text-emerald-300' : 'text-amber-300'}>
+              <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.8)]' : 'bg-amber-400'}`} />
+              <span className={isOnline ? 'text-sky-300' : 'text-amber-300'}>
                 {isOnline ? 'Online' : 'Offline'}
               </span>
             </div>
-            <span className="text-[10px] text-emerald-300/60 font-mono tracking-tight">v1.0</span>
+            <span className="text-[10px] text-sky-300/60 font-mono tracking-tight">v1.0</span>
           </div>
         </div>
       </aside>

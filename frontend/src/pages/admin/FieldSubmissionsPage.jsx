@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import { ClipboardList, MapPin, Calendar, Eye, CheckCircle2, XCircle, Trash2, User, AlertCircle, Clock, FileCheck, FileX, Camera } from 'lucide-react';
@@ -8,33 +8,37 @@ import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import api from '../../services/api';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 
 export default function FieldSubmissionsPage() {
   const { t, language } = useLanguage();
   const { addToast } = useNotification();
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedSubmission, setSelectedSubmission] = useState(null);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [reviewSubmission, setReviewSubmission] = useState(null);
+  const [deletingSubmission, setDeletingSubmission] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  useEffect(() => {
-    fetchSubmissions();
-  }, []);
-
-  const fetchSubmissions = async () => {
-    setLoading(true);
+  const fetchSubmissions = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const res = await api.get('/field-data/submissions');
-      if (res.success) {
+      if (res && res.success) {
         setSubmissions(res.data || []);
       }
     } catch (err) {
-      console.error(err);
+      if (!isSilent) console.error(err);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchSubmissions();
+  }, [fetchSubmissions]);
+
+  // Silent auto refresh every 12 seconds
+  useAutoRefresh(fetchSubmissions, 12000, !reviewSubmission && !deletingSubmission);
 
   const handleReview = async (id, reviewStatus) => {
     setActionLoading(true);
@@ -49,10 +53,10 @@ export default function FieldSubmissionsPage() {
           : `Submission marked as ${reviewStatus}`,
         'success'
       );
-      if (selectedSubmission?.id === id) {
-        setSelectedSubmission(prev => ({ ...prev, review_status: reviewStatus }));
+      if (reviewSubmission?.id === id) {
+        setReviewSubmission(prev => ({ ...prev, review_status: reviewStatus }));
       }
-      fetchSubmissions();
+      fetchSubmissions(true);
     } catch (err) {
       addToast(err.message || (language === 'so' ? 'Dib-u-eegistu way fashilantay' : 'Review failed'), 'error');
     } finally {
@@ -61,20 +65,20 @@ export default function FieldSubmissionsPage() {
   };
 
   const handleDelete = async () => {
-    if (!selectedSubmission) return;
+    if (!deletingSubmission) return;
     setActionLoading(true);
     try {
-      await api.delete(`/field-data/submissions/${selectedSubmission.id}`);
+      await api.delete(`/field-data/submissions/${deletingSubmission.id}`);
       addToast(language === 'so' ? 'Warbixinta si guul leh ayaa loo tirtiray' : 'Submission deleted successfully', 'success');
-      setIsDeleteModalOpen(false);
-      setSelectedSubmission(null);
-      fetchSubmissions();
+      setDeletingSubmission(null);
+      fetchSubmissions(true);
     } catch (err) {
       addToast(err.message || (language === 'so' ? 'Tirtiriddu way fashilantay' : 'Failed to delete'), 'error');
     } finally {
       setActionLoading(false);
     }
   };
+
 
   const getSubmissionPhoto = (row) => {
     try {
@@ -160,14 +164,14 @@ export default function FieldSubmissionsPage() {
       header: language === 'so' ? 'Ficillo' : 'Actions',
       render: (row) => (
         <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-          <Button size="sm" variant="ghost" onClick={() => setSelectedSubmission(row)} icon={Eye}>
+          <Button size="sm" variant="ghost" onClick={() => setReviewSubmission(row)} icon={Eye}>
             {language === 'so' ? 'Faahfaahin' : 'View Details'}
           </Button>
           <Button
             size="sm"
             variant="ghost"
             className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40"
-            onClick={() => { setSelectedSubmission(row); setIsDeleteModalOpen(true); }}
+            onClick={() => setDeletingSubmission(row)}
             icon={Trash2}
           >
             {language === 'so' ? 'Tirtir' : 'Delete'}
@@ -226,48 +230,48 @@ export default function FieldSubmissionsPage() {
         data={submissions}
         loading={loading}
         searchPlaceholder={language === 'so' ? 'Ku raadso foom, olole ama magac...' : 'Search submissions...'}
-        onRowClick={(row) => setSelectedSubmission(row)}
+        onRowClick={(row) => setReviewSubmission(row)}
       />
 
       {/* Submission Detail Modal */}
       <Modal
-        isOpen={!!selectedSubmission && !isDeleteModalOpen}
-        onClose={() => setSelectedSubmission(null)}
+        isOpen={!!reviewSubmission}
+        onClose={() => setReviewSubmission(null)}
         title={language === 'so' ? 'Diiwaanka Hubinta ee Gudbinta Goobta' : 'Field Submission Audit Record'}
-        subtitle={`Recorded by ${selectedSubmission?.volunteer_name || 'Volunteer'}`}
+        subtitle={`Recorded by ${reviewSubmission?.volunteer_name || 'Volunteer'}`}
         maxWidth="max-w-2xl"
       >
-        {selectedSubmission && (
+        {reviewSubmission && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
               <div>
                 <p className="text-slate-500 dark:text-slate-400">{language === 'so' ? 'Ololaha:' : 'Campaign:'}</p>
-                <p className="font-bold text-slate-800 dark:text-white">{selectedSubmission.campaign_name || (language === 'so' ? 'Barnaamij Guud' : 'General Program')}</p>
+                <p className="font-bold text-slate-800 dark:text-white">{reviewSubmission.campaign_name || (language === 'so' ? 'Barnaamij Guud' : 'General Program')}</p>
               </div>
               <div>
                 <p className="text-slate-500 dark:text-slate-400">{language === 'so' ? 'Hawl-wadeenka:' : 'Volunteer:'}</p>
-                <p className="font-bold text-slate-800 dark:text-white">{selectedSubmission.volunteer_name}</p>
+                <p className="font-bold text-slate-800 dark:text-white">{reviewSubmission.volunteer_name}</p>
               </div>
               <div>
                 <p className="text-slate-500 dark:text-slate-400">{language === 'so' ? 'Goobta GPS:' : 'GPS Location:'}</p>
                 <p className="font-mono text-teal-700 dark:text-teal-400 font-semibold">
-                  {selectedSubmission.latitude ? `${selectedSubmission.latitude}, ${selectedSubmission.longitude}` : (language === 'so' ? 'Lama diiwaangelin' : 'Not recorded')}
+                  {reviewSubmission.latitude ? `${reviewSubmission.latitude}, ${reviewSubmission.longitude}` : (language === 'so' ? 'Lama diiwaangelin' : 'Not recorded')}
                 </p>
               </div>
               <div>
                 <p className="text-slate-500 dark:text-slate-400">{language === 'so' ? 'Xaaladda Dib-u-eegista:' : 'Review Status:'}</p>
                 <p className="font-semibold text-slate-800 dark:text-white">
-                  {selectedSubmission.review_status || 'PENDING'}
+                  {reviewSubmission.review_status || 'PENDING'}
                 </p>
               </div>
             </div>
 
-            {getSubmissionPhoto(selectedSubmission) && (
+            {getSubmissionPhoto(reviewSubmission) && (
               <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700">
                 <p className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">{language === 'so' ? 'Sawirka Goobta' : 'Field Photo'}</p>
-                <a href={getSubmissionPhoto(selectedSubmission)} target="_blank" rel="noreferrer" className="block relative group overflow-hidden rounded-lg">
+                <a href={getSubmissionPhoto(reviewSubmission)} target="_blank" rel="noreferrer" className="block relative group overflow-hidden rounded-lg">
                   <img
-                    src={getSubmissionPhoto(selectedSubmission)}
+                    src={getSubmissionPhoto(reviewSubmission)}
                     alt="Field Submission Capture"
                     className="w-full max-h-56 object-cover rounded-lg group-hover:scale-105 transition-transform"
                   />
@@ -281,9 +285,9 @@ export default function FieldSubmissionsPage() {
             <div>
               <p className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">{language === 'so' ? 'Xogtii La Ururiyay' : 'Collected Payload Data'}</p>
               <pre className="p-3 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono text-slate-800 dark:text-slate-200 overflow-x-auto max-h-48">
-                {typeof selectedSubmission.payload_data === 'string'
-                  ? selectedSubmission.payload_data
-                  : JSON.stringify(selectedSubmission.payload_data || selectedSubmission.data, null, 2)}
+                {typeof reviewSubmission.payload_data === 'string'
+                  ? reviewSubmission.payload_data
+                  : JSON.stringify(reviewSubmission.payload_data || reviewSubmission.data, null, 2)}
               </pre>
             </div>
 
@@ -293,7 +297,7 @@ export default function FieldSubmissionsPage() {
                   size="sm"
                   variant="success"
                   loading={actionLoading}
-                  onClick={() => handleReview(selectedSubmission.id, 'APPROVED')}
+                  onClick={() => handleReview(reviewSubmission.id, 'APPROVED')}
                   icon={CheckCircle2}
                 >
                   {language === 'so' ? 'Ansixi' : 'Approve'}
@@ -302,13 +306,13 @@ export default function FieldSubmissionsPage() {
                   size="sm"
                   variant="danger"
                   loading={actionLoading}
-                  onClick={() => handleReview(selectedSubmission.id, 'REJECTED')}
+                  onClick={() => handleReview(reviewSubmission.id, 'REJECTED')}
                   icon={XCircle}
                 >
                   {language === 'so' ? 'Diid' : 'Reject'}
                 </Button>
               </div>
-              <Button size="sm" variant="outline" onClick={() => setSelectedSubmission(null)}>
+              <Button size="sm" variant="outline" onClick={() => setReviewSubmission(null)}>
                 {language === 'so' ? 'Xir' : 'Close'}
               </Button>
             </div>
@@ -318,8 +322,8 @@ export default function FieldSubmissionsPage() {
 
       {/* Delete Modal */}
       <Modal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
+        isOpen={!!deletingSubmission}
+        onClose={() => setDeletingSubmission(null)}
         title={language === 'so' ? 'Xaqiiji Tirtiridda' : 'Confirm Deletion'}
       >
         <div className="space-y-4">
@@ -327,7 +331,7 @@ export default function FieldSubmissionsPage() {
             {language === 'so' ? 'Si joogto ah ma u tirtiraysaa gudbintan?' : 'Are you sure you want to permanently delete this field submission?'}
           </p>
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-            <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)}>
+            <Button variant="outline" onClick={() => setDeletingSubmission(null)}>
               {language === 'so' ? 'Ka Noqo' : 'Cancel'}
             </Button>
             <Button variant="danger" loading={actionLoading} onClick={handleDelete}>
@@ -339,3 +343,4 @@ export default function FieldSubmissionsPage() {
     </div>
   );
 }
+

@@ -16,14 +16,25 @@ const SOMALIA_REGIONS = [
   'Middle Shabelle', 'Bakool', 'Gedo', 'Awdal'
 ];
 
-const SOMALIA_DISTRICTS_MAP = {
-  Banadir: ['Hodan', 'Wadajir', 'Waberi', 'Yaqshid', 'Howlwadaag', 'Hamar Weyne', 'Hamar Jajab', 'Karaan', 'Shibis', 'Boondheere', 'Daynile', 'Dharkenley', 'Kaxda', 'Warta Nabadda'],
+export const SOMALIA_DISTRICTS_MAP = {
+  Banadir: ['Hodan', 'Wadajir', 'Waberi', 'Yaqshid', 'Howlwadaag', 'Hamar Weyne', 'Hamar Jajab', 'Karaan', 'Shibis', 'Boondheere', 'Daynile', 'Dharkenley', 'Kaxda', 'Warta Nabadda', 'Hiliwaa', 'Abdiaziz', 'Kahda', 'Garasbaley'],
   Hiran: ['Beledweyne', 'Buloburde', 'Jalalaqsi', 'Mataban', 'Mahas'],
-  Bay: ['Baidoa', 'Burhakaba', 'Dinsor', 'Qansax Dheere'],
-  Bari: ['Bossaso', 'Qardho', 'Caluula', 'Bandarbeyla', 'Iskushuban'],
-  Gedo: ['Garbaharey', 'Luuq', 'Bardhere', 'Dolow', 'Beled Hawa', 'Elwak'],
+  Bay: ['Baidoa', 'Burhakaba', 'Dinsor', 'Qansax Dheere', 'Berdale'],
+  Bari: ['Bossaso', 'Qardho', 'Caluula', 'Bandarbeyla', 'Iskushuban', 'Bargaal', 'Rako Raaxo'],
+  Nugaal: ['Garowe', 'Eyl', 'Burtinle', 'Dangorayo'],
   Mudug: ['Galkayo', 'Hobyo', 'Jariban', 'Harardhere', 'Goldogob'],
-  'Woqooyi Galbeed': ['Hargeisa', 'Berbera', 'Gabiley']
+  Galguduud: ['Dhusamareb', 'Adado', 'Abudwaq', 'Guriel', 'El Buur', 'El Dher', 'Caabudwaaq'],
+  'Middle Shabelle': ['Jowhar', 'Balcad', 'Adale', 'Warsheikh', 'Mahaday', 'Run-nirgood'],
+  'Lower Shabelle': ['Merka', 'Afgooye', 'Qoryooley', 'Barawe', 'Wanlaweyn', 'Kurtunwarey', 'Sablaale'],
+  Bakool: ['Xudur', 'Wajid', 'El Barde', 'Rabdhure', 'Tayeeglow'],
+  Gedo: ['Garbaharey', 'Luuq', 'Bardhere', 'Dolow', 'Beled Hawa', 'Elwak'],
+  'Middle Juba': ["Bu'aale", 'Jilib', 'Sakow', 'Salagle'],
+  'Lower Juba': ['Kismayo', 'Afmadow', 'Jamame', 'Badhadhe'],
+  'Woqooyi Galbeed': ['Hargeisa', 'Berbera', 'Gabiley'],
+  Togdheer: ['Burao', 'Sheikh', 'Oodweyne', 'Buuhoodle'],
+  Sanaag: ['Erigavo', 'El Afweyn', 'Badhan', 'Las Khorey', 'Dhahar'],
+  Sool: ['Las Anod', 'Taleh', 'Aynaba', 'Hudun'],
+  Awdal: ['Borama', 'Baki', 'Lughaya', 'Zeila']
 };
 
 const EDUCATION_LEVELS = [
@@ -60,18 +71,18 @@ export default function UserFormModal({
   // Available roles based on who is logged in
   const availableRoles = useMemo(() => isSuperAdmin
     ? [
-        { value: 'Superadmin', label: 'Superadmin (Super Maamule)', desc: 'Full platform access, system configuration, activity logs' },
-        { value: 'Admin', label: 'Admin (Maamule Hawleed)', desc: 'Operations manager, volunteer approval, field assignments' },
-        { value: 'DataAnalyst', label: 'Data Analyst (Falanqeeye)', desc: 'Read-only access for analytics, maps, spatial reports' },
-        { value: 'Volunteer', label: 'Volunteer (Hawl-wadeen CHV)', desc: 'Field health records, tasks, offline sync' },
-        { value: 'Public', label: 'Public User (Bulshada)', desc: 'Public health alerts, feedback, personal profile' }
+        { value: 'Superadmin', label: 'Superadmin (Super Maamule)' },
+        { value: 'Admin', label: 'Admin (Maamule Hawleed)' },
+        { value: 'DataAnalyst', label: 'Data Analyst (Falanqeeye)' },
+        { value: 'Volunteer', label: 'Volunteer (Hawl-wadeen CHV)' },
+        { value: 'Public', label: 'Public User (Bulshada)' }
       ]
     : [
-        { value: 'Volunteer', label: 'Volunteer (Hawl-wadeen CHV)', desc: 'Field health records, tasks, offline sync' },
-        { value: 'Public', label: 'Public User (Bulshada)', desc: 'Public health alerts, feedback, personal profile' }
+        { value: 'Volunteer', label: 'Volunteer (Hawl-wadeen CHV)' },
+        { value: 'Public', label: 'Public User (Bulshada)' }
       ], [isSuperAdmin]);
 
-  // Memoized initial values computed only when modal opens or target user changes
+  // Memoized initial values: In create mode, defaults are clean and unselected
   const initialValues = useMemo(() => {
     if (!userData || mode === 'create') {
       return {
@@ -80,7 +91,7 @@ export default function UserFormModal({
         phone: '',
         password: '',
         role: '',
-        status: 'active',
+        status: '',
         gender: '',
         date_of_birth: '',
         profile_image_url: '',
@@ -90,7 +101,7 @@ export default function UserFormModal({
         latitude: '',
         longitude: '',
         education_level: '',
-        languages_spoken: [],
+        languages_spoken: ['Somali'],
         motivation_background: '',
         emergency_contact_name: '',
         emergency_contact_phone: '',
@@ -103,14 +114,22 @@ export default function UserFormModal({
       try { langs = JSON.parse(langs); } catch (e) { langs = [langs]; }
     }
 
+    let userRole = userData.role || 'Volunteer';
+    const urClean = String(userRole).toUpperCase().replace(/[\s-_]/g, '');
+    if (urClean === 'SUPERADMIN' || urClean === 'ROLESUPERADMIN' || urClean === 'SUPER_ADMIN') userRole = 'Superadmin';
+    else if (urClean === 'ADMIN' || urClean === 'ROLEADMIN' || urClean === 'OPERATIONAL') userRole = 'Admin';
+    else if (urClean === 'DATAANALYST' || urClean === 'DATA_ANALYST' || urClean === 'ANALYST') userRole = 'DataAnalyst';
+    else if (urClean === 'VOLUNTEER' || urClean === 'CHV') userRole = 'Volunteer';
+    else if (urClean === 'PUBLIC' || urClean === 'PUBLICUSER' || urClean === 'PUBLIC_USER') userRole = 'Public';
+
     return {
       id: userData.id,
       full_name: userData.full_name || userData.fullName || '',
       email: userData.email || '',
       phone: userData.phone || '',
-      role: userData.role || 'Volunteer',
+      role: userRole,
       status: userData.status || (userData.is_active ? 'active' : 'deactivated'),
-      gender: userData.gender || 'OTHER',
+      gender: userData.gender || 'FEMALE',
       date_of_birth: userData.date_of_birth ? String(userData.date_of_birth).split('T')[0] : '',
       profile_image_url: userData.profile_image_url || userData.avatar_url || '',
       region: userData.region || '',
@@ -119,13 +138,13 @@ export default function UserFormModal({
       latitude: userData.latitude || '',
       longitude: userData.longitude || '',
       education_level: userData.education_level || userData.educationLevel || '',
-      languages_spoken: Array.isArray(langs) ? langs : [],
+      languages_spoken: Array.isArray(langs) ? langs : ['Somali'],
       motivation_background: userData.motivation_background || userData.motivationBackground || '',
       emergency_contact_name: userData.emergency_contact_name || userData.emergencyContactName || '',
       emergency_contact_phone: userData.emergency_contact_phone || userData.emergencyContactPhone || '',
       volunteer_code: userData.volunteer_code || userData.volunteerCode || ''
     };
-  }, [userData?.id, userData?.updated_at, mode, isOpen]);
+  }, [userData?.id, userData?.updated_at, mode, isOpen, isSuperAdmin]);
 
   // Build schema memoized
   const schema = useMemo(() => ({
@@ -138,20 +157,21 @@ export default function UserFormModal({
         fields: [
           {
             name: 'role',
-            label: language === 'so' ? 'Doorka Isticmaalaha *' : 'User Role *',
+            label: language === 'so' ? 'User Role *' : 'User Role *',
             type: 'select',
             icon: 'shield',
             required: true,
+            placeholder: language === 'so' ? '-- Dooro Doorka --' : '-- Select Role --',
             disabled: mode === 'view' || (!isSuperAdmin && mode === 'edit'),
-            options: availableRoles,
-            helperText: language === 'so' ? 'Dooro awoodda iyo doorka nidaamka' : 'Select user access level'
+            options: availableRoles
           },
           {
             name: 'status',
-            label: language === 'so' ? 'Xaaladda Akoonka *' : 'Account Status *',
+            label: language === 'so' ? 'Account Status *' : 'Account Status *',
             type: 'select',
             icon: 'shield',
             required: true,
+            placeholder: language === 'so' ? '-- Dooro Xaaladda --' : '-- Select Status --',
             disabled: mode === 'view',
             options: [
               { value: 'active', label: language === 'so' ? 'Active (Shaqeynaya)' : 'Active' },
@@ -162,13 +182,14 @@ export default function UserFormModal({
           {
             name: 'password',
             label: mode === 'create'
-              ? (language === 'so' ? 'Furaha Sirta (Password) *' : 'Password *')
-              : (language === 'so' ? 'Furaha Cusub (Leave blank to keep current)' : 'New Password (Optional)'),
+              ? (language === 'so' ? 'Password *' : 'Password *')
+              : (language === 'so' ? 'New Password (Optional)' : 'New Password (Optional)'),
             type: 'password',
             icon: 'lock',
             required: mode === 'create',
+            autoComplete: 'new-password',
             condition: () => mode !== 'view',
-            placeholder: mode === 'create' ? 'Min. 6 characters' : 'Enter new password to reset'
+            placeholder: mode === 'create' ? 'Password' : 'Enter new password to reset'
           }
         ]
       },
@@ -180,11 +201,12 @@ export default function UserFormModal({
         fields: [
           {
             name: 'full_name',
-            label: language === 'so' ? 'Magaca Buuxa *' : 'Full Name *',
+            label: language === 'so' ? 'Full Name *' : 'Full Name *',
             type: 'text',
             icon: 'user',
             required: true,
-            placeholder: 'e.g. Amina Mohamed Hassan'
+            autoComplete: 'off',
+            placeholder: 'Full Name'
           },
           {
             name: 'email',
@@ -192,30 +214,32 @@ export default function UserFormModal({
             type: 'email',
             icon: 'mail',
             required: true,
-            placeholder: 'e.g. amina@caafimaadhub.so'
+            autoComplete: 'off',
+            placeholder: 'Email Address'
           },
           {
             name: 'phone',
-            label: language === 'so' ? 'Telefoonka *' : 'Phone Number *',
+            label: language === 'so' ? 'Phone Number *' : 'Phone Number *',
             type: 'tel',
             icon: 'phone',
             required: true,
-            placeholder: 'e.g. +252615123456'
+            autoComplete: 'off',
+            placeholder: 'Phone Number'
           },
           {
             name: 'gender',
-            label: language === 'so' ? 'Jinsiga' : 'Gender',
+            label: language === 'so' ? 'Gender' : 'Gender',
             type: 'select',
             icon: 'user',
+            placeholder: language === 'so' ? '-- Dooro Jinsiga --' : '-- Select Gender --',
             options: [
               { value: 'FEMALE', label: language === 'so' ? 'Dheddig (Female)' : 'Female' },
-              { value: 'MALE', label: language === 'so' ? 'Lab (Male)' : 'Male' },
-              { value: 'OTHER', label: language === 'so' ? 'Mid Kale (Other)' : 'Other' }
+              { value: 'MALE', label: language === 'so' ? 'Lab (Male)' : 'Male' }
             ]
           },
           {
             name: 'date_of_birth',
-            label: language === 'so' ? 'Taariikhda Dhalashada' : 'Date of Birth',
+            label: language === 'so' ? 'Date of Birth' : 'Date of Birth',
             type: 'date',
             icon: 'calendar'
           }
@@ -229,42 +253,52 @@ export default function UserFormModal({
         fields: [
           {
             name: 'region',
-            label: language === 'so' ? 'Gobolka *' : 'Region *',
+            label: language === 'so' ? 'Region *' : 'Region *',
             type: 'select',
             icon: 'map-pin',
             required: true,
+            placeholder: language === 'so' ? '-- Dooro Gobolka --' : '-- Select Region --',
             options: SOMALIA_REGIONS.map(r => ({ value: r, label: r }))
           },
           {
             name: 'district',
-            label: language === 'so' ? 'Degmada *' : 'District *',
-            type: 'text',
+            label: language === 'so' ? 'District *' : 'District *',
+            type: 'select',
             icon: 'map-pin',
             required: true,
-            placeholder: 'e.g. Hodan / Beledweyne'
+            placeholder: language === 'so' ? '-- Dooro Degmada --' : '-- Select District --',
+            options: (formData) => {
+              const selectedReg = formData?.region;
+              if (selectedReg && SOMALIA_DISTRICTS_MAP[selectedReg]) {
+                return SOMALIA_DISTRICTS_MAP[selectedReg].map(d => ({ value: d, label: d }));
+              }
+              // If no region chosen yet, show all districts
+              const allDistricts = Array.from(new Set(Object.values(SOMALIA_DISTRICTS_MAP).flat())).sort();
+              return allDistricts.map(d => ({ value: d, label: d }));
+            }
           },
           {
             name: 'village_neighbourhood',
-            label: language === 'so' ? 'Xaafadda / Tuulada' : 'Village / Neighbourhood',
+            label: language === 'so' ? 'Village / Neighbourhood' : 'Village / Neighbourhood',
             type: 'text',
             icon: 'building',
-            placeholder: 'e.g. Taleex / Al-Baraka',
+            placeholder: 'Village / Neighbourhood',
             condition: (fd) => fd.role === 'Volunteer' || fd.role === 'Public'
           },
           {
             name: 'latitude',
-            label: language === 'so' ? 'Latitude (GPS)' : 'Latitude (GPS)',
+            label: 'Latitude (GPS)',
             type: 'text',
             icon: 'map-pin',
-            placeholder: 'e.g. 2.0469',
+            placeholder: 'Latitude (GPS)',
             condition: (fd) => fd.role === 'Volunteer'
           },
           {
             name: 'longitude',
-            label: language === 'so' ? 'Longitude (GPS)' : 'Longitude (GPS)',
+            label: 'Longitude (GPS)',
             type: 'text',
             icon: 'map-pin',
-            placeholder: 'e.g. 45.3182',
+            placeholder: 'Longitude (GPS)',
             condition: (fd) => fd.role === 'Volunteer'
           }
         ]
@@ -277,25 +311,26 @@ export default function UserFormModal({
         fields: [
           {
             name: 'education_level',
-            label: language === 'so' ? 'Heerka Waxbarashada' : 'Education Level',
+            label: language === 'so' ? 'Education Level' : 'Education Level',
             type: 'select',
             icon: 'book',
+            placeholder: language === 'so' ? '-- Dooro Heerka Waxbarashada --' : '-- Select Education Level --',
             options: EDUCATION_LEVELS
           },
           {
             name: 'languages_spoken',
-            label: language === 'so' ? 'Luqadaha aad ku Hadasho' : 'Languages Spoken',
+            label: language === 'so' ? 'Languages Spoken' : 'Languages Spoken',
             type: 'checkbox-group',
             options: LANGUAGE_OPTIONS,
             colSpan: 2
           },
           {
             name: 'motivation_background',
-            label: language === 'so' ? 'U-jeeddada & Waayo-aragnimada' : 'Motivation & Background',
+            label: language === 'so' ? 'Motivation & Background' : 'Motivation & Background',
             type: 'textarea',
             icon: 'heart',
             rows: 3,
-            placeholder: language === 'so' ? 'Maxaad u dooneysaa inaad noqoto CHV...' : 'Describe health experience or motivation...',
+            placeholder: language === 'so' ? 'U-jeeddada & Waayo-aragnimada' : 'Describe health experience or motivation...',
             colSpan: 2
           }
         ]
@@ -308,17 +343,17 @@ export default function UserFormModal({
         fields: [
           {
             name: 'emergency_contact_name',
-            label: language === 'so' ? 'Magaca Qofka Degdegga ah' : 'Emergency Contact Name',
+            label: language === 'so' ? 'Emergency Contact Name' : 'Emergency Contact Name',
             type: 'text',
             icon: 'user',
-            placeholder: 'e.g. Mohamed Ali (Walaal / Waalid)'
+            placeholder: 'Emergency Contact Name'
           },
           {
             name: 'emergency_contact_phone',
-            label: language === 'so' ? 'Telefoonka Degdegga ah' : 'Emergency Contact Phone',
+            label: language === 'so' ? 'Emergency Contact Phone' : 'Emergency Contact Phone',
             type: 'tel',
             icon: 'phone',
-            placeholder: 'e.g. +252615999888'
+            placeholder: 'Emergency Contact Phone'
           }
         ]
       }

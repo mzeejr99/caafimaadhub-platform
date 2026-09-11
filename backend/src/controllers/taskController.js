@@ -48,11 +48,52 @@ class TaskController {
     }
   }
 
+  async acceptTask(req, res, next) {
+    try {
+      const volIdentifier = req.user.volunteerId || req.user.id;
+      const result = await taskService.updateStatusByVolunteer(req.params.id, volIdentifier, 'ACCEPTED', req.body?.reason, req.user);
+      return success(res, result, 'Task accepted successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async startTask(req, res, next) {
+    try {
+      const volIdentifier = req.user.volunteerId || req.user.id;
+      const result = await taskService.updateStatusByVolunteer(req.params.id, volIdentifier, 'IN_PROGRESS', req.body?.reason, req.user);
+      return success(res, result, 'Task started successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async completeTask(req, res, next) {
+    try {
+      const volIdentifier = req.user.volunteerId || req.user.id;
+      const result = await taskService.updateStatusByVolunteer(req.params.id, volIdentifier, 'COMPLETED', req.body?.reason, req.user);
+      return success(res, result, 'Task completed successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async rejectTask(req, res, next) {
+    try {
+      const volIdentifier = req.user.volunteerId || req.user.id;
+      const result = await taskService.updateStatusByVolunteer(req.params.id, volIdentifier, 'REJECTED', req.body?.reason, req.user);
+      return success(res, result, 'Task rejected');
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async updateTaskStatus(req, res, next) {
     try {
       const { status, reason } = req.body;
       if (!status) return badRequest(res, 'Status is required');
-      const result = await taskService.updateStatusByVolunteer(req.params.id, req.user.volunteerId, status, reason);
+      const volIdentifier = req.user.volunteerId || req.user.id;
+      const result = await taskService.updateStatusByVolunteer(req.params.id, volIdentifier, status, reason, req.user);
       return success(res, result, 'Task status updated');
     } catch (err) {
       next(err);

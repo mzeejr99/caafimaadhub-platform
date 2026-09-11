@@ -39,15 +39,43 @@ export default function FieldDataFormPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      setFormError(language === 'so' ? 'Sawirku waa inuu ka yaraadaa 5MB' : 'Image size must be less than 5MB');
+    if (file.size > 25 * 1024 * 1024) {
+      setFormError(language === 'so' ? 'Sawirku waa inuu ka yaraadaa 25MB' : 'Image size must be less than 25MB');
       return;
     }
 
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setPhotoPreview(reader.result);
-      setForm(prev => ({ ...prev, photoUrl: reader.result }));
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1280;
+        const MAX_HEIGHT = 1280;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.82);
+        setPhotoPreview(compressedDataUrl);
+        setForm(prev => ({ ...prev, photoUrl: compressedDataUrl }));
+      };
+      img.src = event.target.result;
     };
     reader.readAsDataURL(file);
   };
@@ -57,18 +85,33 @@ export default function FieldDataFormPage() {
     setForm(prev => ({ ...prev, photoUrl: '' }));
   };
 
+  const [activeFormId, setActiveFormId] = useState('form-core-01');
+
   useEffect(() => {
-    fetchCampaigns();
+    fetchCampaignsAndForms();
   }, []);
 
-  const fetchCampaigns = async () => {
+  const fetchCampaignsAndForms = async () => {
     try {
-      const res = await api.get('/campaigns');
-      if (res.success || Array.isArray(res.data) || Array.isArray(res)) {
-        const list = res.data || (Array.isArray(res) ? res : []);
+      const [campRes, formsRes] = await Promise.allSettled([
+        api.get('/campaigns'),
+        api.get('/field-data/forms')
+      ]);
+
+      if (campRes.status === 'fulfilled') {
+        const res = campRes.value;
+        const list = res?.data || (Array.isArray(res) ? res : []);
         setCampaigns(list);
-        if (list.length > 0 && !form.campaignId) {
-          setForm(prev => ({ ...prev, campaignId: list[0].id }));
+        if (list.length > 0) {
+          setForm(prev => ({ ...prev, campaignId: prev.campaignId || list[0].id }));
+        }
+      }
+
+      if (formsRes.status === 'fulfilled') {
+        const res = formsRes.value;
+        const list = res?.data || (Array.isArray(res) ? res : []);
+        if (list.length > 0 && list[0]?.id) {
+          setActiveFormId(list[0].id);
         }
       }
     } catch (err) {
@@ -88,7 +131,8 @@ export default function FieldDataFormPage() {
     e.preventDefault();
     setFormError('');
 
-    if (!form.campaignId) {
+    const targetCampaignId = form.campaignId || (campaigns.length > 0 ? campaigns[0].id : null);
+    if (!targetCampaignId) {
       setFormError(language === 'so' ? 'Fadlan dooro ololaha caafimaadka' : 'Please select a campaign');
       return;
     }
@@ -129,22 +173,37 @@ export default function FieldDataFormPage() {
 
     setLoading(true);
 
+    const payloadObj = {
+      householdHead: form.householdHead,
+      household_head: form.householdHead,
+      familyMembersCount: parseInt(form.familyMembersCount, 10) || 0,
+      family_members_count: parseInt(form.familyMembersCount, 10) || 0,
+      underFiveChildren: parseInt(form.underFiveChildren, 10) || 0,
+      under_five_children: parseInt(form.underFiveChildren, 10) || 0,
+      vaccinatedUnderFive: form.vaccinatedUnderFive,
+      vaccinated_under_five: form.vaccinatedUnderFive,
+      suspectedIllness: form.suspectedIllness,
+      suspected_illness: form.suspectedIllness,
+      cleanWaterSource: form.cleanWaterSource,
+      clean_water_source: form.cleanWaterSource,
+      notes: form.notes,
+      photoUrl: form.photoUrl,
+      photo_url: form.photoUrl
+    };
+
     const submissionPayload = {
-      campaignId: form.campaignId,
-      fieldFormId: 1,
+      campaignId: targetCampaignId,
+      campaign_id: targetCampaignId,
+      fieldFormId: activeFormId || 'form-core-01',
+      field_form_id: activeFormId || 'form-core-01',
       latitude: parseFloat(form.latitude) || 2.0469,
       longitude: parseFloat(form.longitude) || 45.3182,
       accuracy: 10.0,
-      data: {
-        householdHead: form.householdHead,
-        familyMembersCount: parseInt(form.familyMembersCount, 10),
-        underFiveChildren: parseInt(form.underFiveChildren, 10),
-        vaccinatedUnderFive: form.vaccinatedUnderFive,
-        suspectedIllness: form.suspectedIllness,
-        cleanWaterSource: form.cleanWaterSource,
-        notes: form.notes,
-        photoUrl: form.photoUrl
-      }
+      accuracyMeters: 10.0,
+      accuracy_meters: 10.0,
+      payloadData: payloadObj,
+      payload_data: payloadObj,
+      data: payloadObj
     };
 
     try {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import { Package, Plus, AlertTriangle, ArrowDownRight, ArrowUpRight, Truck, AlertCircle, Edit, Trash2, BoxesIcon, Layers } from 'lucide-react';
@@ -11,6 +11,8 @@ import { Input, Select, Textarea } from '../../components/common/Input';
 import api from '../../services/api';
 import { validateTextOnly, validateNumberOnly, validateFutureOrTodayDate } from '../../utils/validation';
 import { enumLabel } from '../../i18n/enums';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
+
 
 export default function InventoryListPage() {
   const { t, language } = useLanguage();
@@ -70,26 +72,30 @@ export default function InventoryListPage() {
     { value: 'SUPPLIES', label: t('inv_admin.cat_general') }
   ];
 
-  useEffect(() => {
-    fetchItems();
-  }, [categoryFilter]);
-
-  const fetchItems = async () => {
-    setLoading(true);
+  const fetchItems = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const res = await api.get('/inventory/items', {
         category: categoryFilter || undefined,
         search: search || undefined
       });
-      if (res.success) {
+      if (res && res.success) {
         setItems(res.data || []);
       }
     } catch (err) {
-      console.error(err);
+      if (!isSilent) console.error(err);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
-  };
+  }, [categoryFilter, search]);
+
+  useEffect(() => {
+    fetchItems();
+  }, [fetchItems]);
+
+  // Silent auto refresh every 15 seconds
+  useAutoRefresh(fetchItems, 15000, !isItemModalOpen && !isEditModalOpen && !isDeleteModalOpen && !isStockModalOpen && !isMovementModalOpen);
+
 
   // CREATE Item
   const handleCreateItem = async (e) => {

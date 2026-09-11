@@ -223,15 +223,55 @@ class InventoryService {
    * Volunteer creates supply request
    */
   async createSupplyRequest(data, volunteerId) {
-    const { itemId, requestedQuantity, quantityRequested, taskId, campaignId, urgency = 'MEDIUM', reason } = data;
-    const qty = requestedQuantity || quantityRequested;
+    const rawItemId = data.itemId || data.item_id || data.id;
+    const qty = Number(data.requestedQuantity || data.quantityRequested || data.quantity_requested || data.quantity);
+    const urgency = data.urgency || 'MEDIUM';
+    const reason = data.reason || null;
+    const taskId = data.taskId || data.task_id || null;
+    const campaignId = data.campaignId || data.campaign_id || null;
 
-    if (!itemId || !qty || qty <= 0) {
+    if (!rawItemId || isNaN(qty) || qty <= 0) {
       throw { status: 400, message: 'Valid item and requested quantity are required' };
     }
 
-    const item = await db.getOne(`SELECT * FROM inventory_items WHERE id = ?`, [itemId]);
+    const item = await db.getOne(
+      `SELECT * FROM inventory_items WHERE id = ? OR item_code = ?`,
+      [rawItemId, rawItemId]
+    );
     if (!item) throw { status: 404, message: 'Inventory item not found' };
+
+    // Resolve volunteer profile ID
+    let effectiveVolunteerId = volunteerId;
+    let vol = await db.getOne('SELECT id FROM volunteers WHERE id = ? OR user_id = ?', [volunteerId, volunteerId]);
+    if (!vol && volunteerId) {
+      const volId = uuid();
+      const volCode = `VOL-${Date.now().toString().slice(-6)}`;
+      await db.execute(
+        `INSERT INTO volunteers (
+          id, user_id, volunteer_id, gender, region_id, district_id,
+          availability_status, status, profile_completed, registration_date
+        ) VALUES (?, ?, ?, 'OTHER', 'reg-banadir', 'dist-hodan', 'AVAILABLE', 'ACTIVE', 1, CURRENT_TIMESTAMP)`,
+        [volId, volunteerId, volCode]
+      ).catch(() => {});
+      vol = await db.getOne('SELECT id FROM volunteers WHERE id = ? OR user_id = ?', [volunteerId, volunteerId]);
+    }
+    if (vol) {
+      effectiveVolunteerId = vol.id;
+    }
+
+    // Resolve campaign ID if provided
+    let effectiveCampaignId = campaignId;
+    if (campaignId) {
+      const camp = await db.getOne('SELECT id FROM campaigns WHERE id = ? OR code = ?', [campaignId, campaignId]);
+      effectiveCampaignId = camp ? camp.id : null;
+    }
+
+    // Resolve task ID if provided
+    let effectiveTaskId = taskId;
+    if (taskId) {
+      const t = await db.getOne('SELECT id FROM tasks WHERE id = ?', [taskId]);
+      effectiveTaskId = t ? t.id : null;
+    }
 
     const reqId = uuid();
     const reqCode = generateRequestCode();
@@ -241,7 +281,7 @@ class InventoryService {
         id, request_code, volunteer_id, task_id, campaign_id, item_id,
         requested_quantity, approved_quantity, status, urgency, reason, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'REQUESTED', ?, ?, CURRENT_TIMESTAMP)`,
-      [reqId, reqCode, volunteerId, taskId || null, campaignId || null, item.id, qty, urgency, reason || null]
+      [reqId, reqCode, effectiveVolunteerId, effectiveTaskId, effectiveCampaignId, item.id, qty, urgency, reason || null]
     );
 
     return {

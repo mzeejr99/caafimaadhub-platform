@@ -4,11 +4,12 @@ const { success, created, badRequest } = require('../utils/response');
 class AuthController {
   async login(req, res, next) {
     try {
-      const { email, password } = req.body;
-      if (!email || !password) {
-        return badRequest(res, 'Email and password are required');
+      const { email, phone, identifier, username, password } = req.body;
+      const effectiveIdentifier = email || phone || identifier || username;
+      if (!effectiveIdentifier || !password) {
+        return badRequest(res, 'Email/Phone and password are required');
       }
-      const result = await authService.login(email, password, req.ip, req.headers['user-agent']);
+      const result = await authService.login(effectiveIdentifier, password, req.ip, req.headers['user-agent']);
       return success(res, result, 'Login successful');
     } catch (err) {
       next(err);

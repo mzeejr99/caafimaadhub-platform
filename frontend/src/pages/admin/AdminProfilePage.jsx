@@ -183,11 +183,11 @@ export default function AdminProfilePage() {
   ];
 
   return (
-    <div className="space-y-6 w-full max-w-6xl mx-auto">
+    <div className="space-y-6 w-full">
       {/* Header */}
       <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
         <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-3">
-          <User className="w-7 h-7 text-teal-700 dark:text-teal-400" />
+          <User className="w-7 h-7 text-sky-600 dark:text-sky-400" />
           <span>{language === 'so' ? 'Xogtayda & Amniga (My Profile & Security)' : 'My Profile & Security'}</span>
         </h1>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">

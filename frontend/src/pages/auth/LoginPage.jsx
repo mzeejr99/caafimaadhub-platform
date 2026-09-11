@@ -12,12 +12,12 @@ import {
 } from 'lucide-react';
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, user: authUser, isAuthenticated } = useAuth();
   const { language, setLanguage, toggleLanguage } = useLanguage();
   const { theme, toggleTheme, isDark } = useTheme();
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState('');
+  const [emailOrPhone, setEmailOrPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
@@ -25,6 +25,22 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [pwdFocused, setPwdFocused] = useState(false);
+
+  // Auto-redirect if already logged in (Stay Logged In)
+  useEffect(() => {
+    if (isAuthenticated && authUser) {
+      const roleUpper = String(authUser.role || '').toUpperCase().replace(/[\s-_]/g, '');
+      if (roleUpper === 'PUBLICUSER' || roleUpper === 'PUBLIC') {
+        navigate('/community/portal', { replace: true });
+      } else if (roleUpper === 'VOLUNTEER') {
+        navigate('/volunteer/dashboard', { replace: true });
+      } else {
+        navigate('/admin/dashboard', { replace: true });
+      }
+    }
+  }, [isAuthenticated, authUser, navigate]);
 
   const [publicStats, setPublicStats] = useState({
     totalVolunteers: 10,
@@ -55,17 +71,18 @@ export default function LoginPage() {
     setSubmitted(true);
     setError('');
 
-    if (!email || email.trim() === '' || !password || password.trim() === '') {
-      setError(isSomali ? 'Fadlan geli email-kaaga iyo furahaaga sirta ah' : 'Please enter your email and password');
+    const identifier = (emailOrPhone || '').trim();
+    if (!identifier || !password || password.trim() === '') {
+      setError(isSomali ? 'Fadlan geli email-kaaga ama taleefankaaga iyo furaha sirta ah' : 'Please enter your email or phone and password');
       return;
     }
 
     setLoading(true);
     try {
-      const user = await login(email.trim(), password);
-      if (user.role === 'PUBLIC_USER') {
+      const user = await login(identifier, password);
+      if (user.role === 'PUBLIC_USER' || user.role === 'Public') {
         navigate('/community/portal');
-      } else if (user.role === 'VOLUNTEER') {
+      } else if (user.role === 'VOLUNTEER' || user.role === 'Volunteer') {
         navigate('/volunteer/dashboard');
       } else {
         navigate('/admin/dashboard');
@@ -73,7 +90,7 @@ export default function LoginPage() {
     } catch (err) {
       setError(
         err.response?.data?.message || 
-        (isSomali ? 'Email-ka ama furaha sirta ah waa khalad. Fadlan hubi xogtaada.' : 'Invalid email or password. Please check your credentials.')
+        (isSomali ? 'Email-ka/Telefoonka ama furaha sirta ah waa khalad. Fadlan hubi xogtaada.' : 'Invalid email/phone or password credentials. Please try again.')
       );
     } finally {
       setLoading(false);
@@ -258,7 +275,7 @@ export default function LoginPage() {
           <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl p-5 sm:p-8 md:p-9 border border-slate-200/90 dark:border-slate-800 w-full max-w-lg transition-colors">
             
             {/* Header */}
-            <div className="text-center mb-5">
+            <div className="text-center mb-6">
               <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center mx-auto mb-2.5 shadow-xs border border-emerald-100 dark:border-emerald-900/60">
                 <KeyRound className="w-6 h-6 text-emerald-700 dark:text-emerald-400" />
               </div>
@@ -266,7 +283,7 @@ export default function LoginPage() {
                 {isSomali ? 'Ku Soo Dhawoow!' : 'Welcome Back!'}
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">
-                {isSomali ? 'Geli iimaylkaaga iyo furahaaga sirta ah si aad u gasho' : 'Enter your email and password to sign in'}
+                {isSomali ? 'Geli iimaylkaaga iyo password-kaaga si aad u gasho' : 'Enter your email and password to sign in'}
               </p>
             </div>
 
@@ -278,67 +295,99 @@ export default function LoginPage() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
               
-              {/* Email Input */}
+              {/* Email or Phone Floating Outlined Input (Matching Image 3 & 4) */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                  {isSomali ? 'Iimaylkaaga (Email Address)' : 'Email Address'} <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                    <Mail className="w-4 h-4" />
-                  </div>
+                <div className={`relative flex items-center rounded-xl border transition-all duration-200 ${
+                  emailFocused
+                    ? 'border-emerald-700 dark:border-emerald-400 ring-2 ring-emerald-600/20 bg-white dark:bg-slate-900'
+                    : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-slate-400 dark:hover:border-slate-600'
+                }`}>
+                  <label
+                    htmlFor="login_identifier"
+                    className={`absolute pointer-events-none transition-all duration-150 select-none z-10 ${
+                      emailFocused || (emailOrPhone && emailOrPhone.trim() !== '')
+                        ? '-top-2.5 left-3 px-1.5 rounded-md bg-white dark:bg-slate-900 text-[11px] font-bold tracking-wider leading-none text-emerald-700 dark:text-emerald-400'
+                        : 'top-1/2 -translate-y-1/2 left-3.5 text-sm font-normal text-slate-400 dark:text-slate-400'
+                    }`}
+                  >
+                    {isSomali ? 'Email ama Telefoon' : 'Email or phone'}
+                  </label>
                   <input
-                    type="email"
+                    id="login_identifier"
+                    type="text"
                     required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder={isSomali ? 'tusaale: admin@caafimaadhub.so' : 'e.g. user@caafimaadhub.so'}
-                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all shadow-xs"
+                    value={emailOrPhone}
+                    onFocus={() => setEmailFocused(true)}
+                    onBlur={() => setEmailFocused(false)}
+                    onChange={(e) => setEmailOrPhone(e.target.value)}
+                    autoComplete="username"
+                    className="w-full py-3.5 px-3.5 text-sm bg-transparent text-slate-900 dark:text-white focus:outline-none"
                   />
                 </div>
-              </div>
-
-              {/* Password Input */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    {isSomali ? 'Furaha Sirta ah (Password)' : 'Password'} <span className="text-red-500">*</span>
-                  </label>
+                <div className="mt-1.5 flex justify-start">
                   <button
                     type="button"
                     onClick={() => setError(isSomali ? 'Fadlan la xiriir Maamulaha Sare: admin@caafimaadhub.so' : 'Please contact System Administrator at admin@caafimaadhub.so')}
-                    className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer"
+                    className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer"
                   >
-                    {isSomali ? 'Ma ilowday furaha?' : 'Forgot password?'}
+                    {isSomali ? 'Ma ilowday email-ka?' : 'Forgot email?'}
                   </button>
                 </div>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                    <Lock className="w-4 h-4" />
-                  </div>
+              </div>
+
+              {/* Password Floating Outlined Input (Matching Image 3 & 4) */}
+              <div>
+                <div className={`relative flex items-center rounded-xl border transition-all duration-200 ${
+                  pwdFocused
+                    ? 'border-emerald-700 dark:border-emerald-400 ring-2 ring-emerald-600/20 bg-white dark:bg-slate-900'
+                    : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/40 hover:border-slate-400 dark:hover:border-slate-600'
+                }`}>
+                  <label
+                    htmlFor="login_password"
+                    className={`absolute pointer-events-none transition-all duration-150 select-none z-10 ${
+                      pwdFocused || (password && password.trim() !== '')
+                        ? '-top-2.5 left-3 px-1.5 rounded-md bg-white dark:bg-slate-900 text-[11px] font-bold tracking-wider leading-none text-emerald-700 dark:text-emerald-400'
+                        : 'top-1/2 -translate-y-1/2 left-3.5 text-sm font-normal text-slate-400 dark:text-slate-400'
+                    }`}
+                  >
+                    {isSomali ? 'Furaha sirta ah' : 'Password'}
+                  </label>
                   <input
+                    id="login_password"
                     type={showPassword ? 'text' : 'password'}
                     required
                     value={password}
+                    onFocus={() => setPwdFocused(true)}
+                    onBlur={() => setPwdFocused(false)}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full pl-10 pr-11 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all shadow-xs"
+                    autoComplete="current-password"
+                    className="w-full py-3.5 pl-3.5 pr-11 text-sm bg-transparent text-slate-900 dark:text-white focus:outline-none"
                   />
                   <button
                     type="button"
+                    tabIndex={-1}
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-1 rounded-lg"
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showPassword ? <EyeOff className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <div className="mt-1.5 flex justify-start">
+                  <button
+                    type="button"
+                    onClick={() => setError(isSomali ? 'Fadlan la xiriir Maamulaha Sare: admin@caafimaadhub.so' : 'Please contact System Administrator at admin@caafimaadhub.so')}
+                    className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer"
+                  >
+                    {isSomali ? 'Ma ilowday furaha?' : 'Forgot password?'}
                   </button>
                 </div>
               </div>
 
               {/* Remember Me */}
-              <div className="flex items-center justify-between text-xs pt-1">
-                <label className="flex items-center gap-2 text-slate-600 dark:text-slate-300 cursor-pointer">
+              <div className="flex items-center justify-between text-xs pt-0.5">
+                <label className="flex items-center gap-2 text-slate-600 dark:text-slate-300 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={rememberMe}

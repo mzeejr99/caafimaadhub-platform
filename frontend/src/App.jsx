@@ -56,14 +56,13 @@ import CertificateWalletPage from './pages/volunteer/CertificateWalletPage';
 import VolunteerSupplyRequestsPage from './pages/volunteer/VolunteerSupplyRequestsPage';
 import VolunteerProfilePage from './pages/volunteer/VolunteerProfilePage';
 
-// Role Guard Component
 function ProtectedRoute({ children, allowedRoles }) {
   const { user, loading, isAuthenticated } = useAuth();
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-700"></div>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-600"></div>
       </div>
     );
   }
@@ -72,14 +71,33 @@ function ProtectedRoute({ children, allowedRoles }) {
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(user?.role)) {
-    if (user?.role === 'PUBLIC_USER') {
-      return <Navigate to="/community/portal" replace />;
+  if (allowedRoles && allowedRoles.length > 0) {
+    const userRoleRaw = String(user?.role || '').toUpperCase().replace(/[\s-_]/g, '');
+    const userRoles = Array.isArray(user?.roles)
+      ? user.roles.map(r => String(r?.name || r).toUpperCase().replace(/[\s-_]/g, ''))
+      : [];
+
+    const normalizedAllowed = allowedRoles.map(r => String(r).toUpperCase().replace(/[\s-_]/g, ''));
+
+    const hasRole = normalizedAllowed.some(allowed =>
+      allowed === userRoleRaw ||
+      userRoles.includes(allowed) ||
+      (allowed === 'SUPERADMIN' && (userRoleRaw === 'SUPERADMIN' || userRoleRaw === 'SUPER_ADMIN')) ||
+      (allowed === 'ADMIN' && (userRoleRaw === 'ADMIN' || userRoleRaw === 'OPERATIONAL' || userRoleRaw === 'SUPERADMIN')) ||
+      (allowed === 'DATAANALYST' && (userRoleRaw === 'DATAANALYST' || userRoleRaw === 'DATA_ANALYST' || userRoleRaw === 'ANALYST')) ||
+      (allowed === 'VOLUNTEER' && userRoleRaw === 'VOLUNTEER') ||
+      (allowed === 'PUBLICUSER' && (userRoleRaw === 'PUBLICUSER' || userRoleRaw === 'PUBLIC'))
+    );
+
+    if (!hasRole) {
+      if (userRoleRaw === 'PUBLICUSER' || userRoleRaw === 'PUBLIC') {
+        return <Navigate to="/community/portal" replace />;
+      }
+      if (userRoleRaw === 'VOLUNTEER') {
+        return <Navigate to="/volunteer/dashboard" replace />;
+      }
+      return <Navigate to="/admin/dashboard" replace />;
     }
-    if (user?.role === 'VOLUNTEER') {
-      return <Navigate to="/volunteer/dashboard" replace />;
-    }
-    return <Navigate to="/admin/dashboard" replace />;
   }
 
   return children;

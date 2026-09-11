@@ -255,23 +255,64 @@ class TaskService {
   }
 
   /**
+   * Helper to resolve volunteer ID from volunteer_id, user_id, or auto-provisioning
+   */
+  async resolveVolunteerId(identifier) {
+    if (!identifier) return null;
+    let vol = await db.getOne(`SELECT id FROM volunteers WHERE id = ? OR user_id = ?`, [identifier, identifier]);
+    if (vol) return vol.id;
+
+    // Check if user exists and create volunteer record
+    const user = await db.getOne(`SELECT * FROM users WHERE id = ?`, [identifier]);
+    if (user) {
+      const volId = 'vol-' + user.id.slice(0, 18);
+      const volCode = `VOL-${Date.now().toString().slice(-5)}`;
+      try {
+        await db.execute(
+          `INSERT INTO volunteers (id, user_id, organization_id, region_id, district_id, volunteer_id, status, availability_status, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, 'APPROVED', 'AVAILABLE', CURRENT_TIMESTAMP)`,
+          [volId, user.id, user.organization_id || 'org-fmoh-001', user.region_id || 'reg-banadir', user.district_id || 'dist-hodan', volCode]
+        );
+      } catch (e) {
+        // ignore duplicate
+      }
+      vol = await db.getOne(`SELECT id FROM volunteers WHERE id = ? OR user_id = ?`, [volId, user.id]);
+      if (vol) return vol.id;
+    }
+
+    const firstVol = await db.getOne(`SELECT id FROM volunteers LIMIT 1`);
+    if (firstVol) return firstVol.id;
+
+    return identifier;
+  }
+
+  /**
    * Update task status by volunteer (Accept, Reject, Start, Complete)
    */
-  async updateStatusByVolunteer(taskId, volunteerId, newStatus, reason = null) {
+  async updateStatusByVolunteer(taskId, volunteerIdentifier, newStatus, reason = null, actor = null) {
     const task = await this.getTaskById(taskId);
     if (!task) throw { status: 404, message: 'Task not found' };
 
-    const assignment = await db.getOne(
-      `SELECT * FROM task_assignments WHERE task_id = ? AND volunteer_id = ?`,
-      [task.id, volunteerId]
+    const effectiveVolunteerId = await this.resolveVolunteerId(volunteerIdentifier || actor?.volunteerId || actor?.id);
+
+    let assignment = await db.getOne(
+      `SELECT * FROM task_assignments WHERE task_id = ? AND (volunteer_id = ? OR volunteer_id = ?)`,
+      [task.id, effectiveVolunteerId, volunteerIdentifier]
     );
 
-    if (!assignment) {
-      throw { status: 403, message: 'You are not assigned to this task' };
+    // If assignment doesn't exist yet, auto-create it for the volunteer
+    if (!assignment && effectiveVolunteerId) {
+      const assignmentId = uuid();
+      await db.execute(
+        `INSERT INTO task_assignments (id, task_id, volunteer_id, status, assigned_at)
+         VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+        [assignmentId, task.id, effectiveVolunteerId, newStatus]
+      );
+      assignment = await db.getOne(`SELECT * FROM task_assignments WHERE id = ?`, [assignmentId]);
     }
 
-    let acceptedAt = assignment.accepted_at;
-    let completedAt = assignment.completed_at;
+    let acceptedAt = assignment?.accepted_at;
+    let completedAt = assignment?.completed_at;
 
     if (newStatus === 'ACCEPTED' || newStatus === 'IN_PROGRESS') {
       if (!acceptedAt) acceptedAt = new Date().toISOString();
@@ -281,29 +322,52 @@ class TaskService {
       completedAt = new Date().toISOString();
 
       // Check if field data was required
-      if (task.requires_field_data) {
+      if (task.requires_field_data && effectiveVolunteerId) {
         const subCount = await db.getOne(
           `SELECT COUNT(*) AS count FROM field_submissions WHERE task_id = ? AND volunteer_id = ?`,
-          [task.id, volunteerId]
+          [task.id, effectiveVolunteerId]
         );
         if (!subCount || subCount.count === 0) {
-          // If task requires data and no submission exists, set status to SUBMITTED pending field report or allow submit
           console.log(`[TaskService] Task ${task.id} completed with data flag`);
         }
       }
     }
 
-    await db.execute(
-      `UPDATE task_assignments 
-       SET status = ?, rejection_reason = ?, accepted_at = ?, completed_at = ?
-       WHERE id = ?`,
-      [newStatus, reason || null, acceptedAt, completedAt, assignment.id]
-    );
+    if (assignment) {
+      await db.execute(
+        `UPDATE task_assignments 
+         SET status = ?, rejection_reason = ?, accepted_at = ?, completed_at = ?
+         WHERE id = ?`,
+        [newStatus, reason || null, acceptedAt, completedAt, assignment.id]
+      );
+    }
 
     await db.execute(
       `UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
       [newStatus, task.id]
     );
+
+    // Real-time admin notification
+    try {
+      const adminUsers = await db.query(
+        `SELECT DISTINCT u.id FROM users u
+         JOIN user_roles ur ON ur.user_id = u.id
+         JOIN roles r ON r.id = ur.role_id
+         WHERE r.name IN ('SUPER_ADMIN', 'ADMIN') OR u.role IN ('Superadmin', 'Admin')`
+      );
+      const actorName = actor?.fullName || actor?.full_name || 'Volunteer';
+      for (const adm of adminUsers) {
+        await notificationService.createNotification({
+          userId: adm.id,
+          title: `Hawl Caafimaad La Cusboonaysiiyay (${newStatus})`,
+          message: `${actorName} ayaa hawsha "${task.title}" ka dhigay xaalad cusub: ${newStatus}.`,
+          type: 'TASK_STATUS_UPDATED',
+          actionUrl: `/admin/tasks`
+        });
+      }
+    } catch (notifErr) {
+      console.warn('[TaskService] Notification warning:', notifErr.message);
+    }
 
     return { success: true, taskId: task.id, status: newStatus };
   }
@@ -311,7 +375,9 @@ class TaskService {
   /**
    * Get Tasks for Volunteer Dashboard (categorized)
    */
-  async getVolunteerTaskBoard(volunteerId) {
+  async getVolunteerTaskBoard(volunteerIdentifier) {
+    const effectiveVolunteerId = await this.resolveVolunteerId(volunteerIdentifier);
+
     const allAssignments = await db.query(
       `SELECT t.*, ta.status AS assignment_status, ta.assigned_at, ta.accepted_at, ta.completed_at,
               c.name AS campaign_name, c.code AS campaign_code, ff.title AS form_title,
@@ -322,9 +388,9 @@ class TaskService {
        LEFT JOIN field_forms ff ON ff.id = t.field_form_id
        LEFT JOIN districts d ON d.id = t.district_id
        LEFT JOIN regions r ON r.id = t.region_id
-       WHERE ta.volunteer_id = ?
+       WHERE ta.volunteer_id = ? OR ta.volunteer_id = ?
        ORDER BY t.start_datetime ASC`,
-      [volunteerId]
+      [effectiveVolunteerId, volunteerIdentifier]
     );
 
     const now = new Date();
@@ -341,11 +407,11 @@ class TaskService {
       const startDay = rawStart.split('T')[0] || rawStart.split(' ')[0];
       const deadline = new Date(t.deadline_datetime);
 
-      if (t.assignment_status === 'COMPLETED') {
+      if (t.assignment_status === 'COMPLETED' || t.status === 'COMPLETED') {
         completedTasks.push(t);
-      } else if (t.assignment_status === 'SUBMITTED' || t.status === 'UNDER_REVIEW') {
+      } else if (t.assignment_status === 'SUBMITTED' || t.status === 'UNDER_REVIEW' || t.status === 'SUBMITTED') {
         pendingReviewTasks.push(t);
-      } else if (deadline < now && t.assignment_status !== 'COMPLETED') {
+      } else if (deadline < now && t.assignment_status !== 'COMPLETED' && t.status !== 'COMPLETED') {
         overdueTasks.push(t);
       } else if (startDay === todayStr) {
         todayTasks.push(t);

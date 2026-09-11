@@ -2,9 +2,10 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const COLOR_MAP = {
-  teal:    { ring: 'ring-teal-100 dark:ring-teal-900/30',    icon: 'bg-teal-100 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400',       value: 'text-teal-700 dark:text-teal-300'    },
+  sky:     { ring: 'ring-sky-100 dark:ring-sky-900/30',      icon: 'bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400',         value: 'text-sky-700 dark:text-sky-300'      },
+  teal:    { ring: 'ring-sky-100 dark:ring-sky-900/30',      icon: 'bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400',         value: 'text-sky-700 dark:text-sky-300'      },
   blue:    { ring: 'ring-blue-100 dark:ring-blue-900/30',    icon: 'bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400',       value: 'text-blue-700 dark:text-blue-300'    },
-  emerald: { ring: 'ring-emerald-100 dark:ring-emerald-900/30', icon: 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400', value: 'text-emerald-700 dark:text-emerald-300' },
+  emerald: { ring: 'ring-sky-100 dark:ring-sky-900/30',     icon: 'bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400',         value: 'text-sky-700 dark:text-sky-300'      },
   amber:   { ring: 'ring-amber-100 dark:ring-amber-900/30',   icon: 'bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400',     value: 'text-amber-700 dark:text-amber-300'   },
   red:     { ring: 'ring-red-100 dark:ring-red-900/30',     icon: 'bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400',         value: 'text-red-700 dark:text-red-300'     },
   purple:  { ring: 'ring-purple-100 dark:ring-purple-900/30',  icon: 'bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400',   value: 'text-purple-700 dark:text-purple-300'  },
@@ -12,9 +13,9 @@ const COLOR_MAP = {
   orange:  { ring: 'ring-orange-100 dark:ring-orange-900/30',  icon: 'bg-orange-100 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400',   value: 'text-orange-700 dark:text-orange-300'  },
 };
 
-export default function StatCard({ value, label, icon: Icon, color = 'teal', subtitle, to, onClick, className = '' }) {
+export default function StatCard({ value, label, icon: Icon, color = 'sky', subtitle, to, onClick, className = '' }) {
   const navigate = useNavigate();
-  const c = COLOR_MAP[color] || COLOR_MAP.teal;
+  const c = COLOR_MAP[color] || COLOR_MAP.sky;
   const isClickable = !!to || !!onClick;
 
   const handleClick = () => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import { MessageSquare, CheckCircle2, Eye, User, Trash2, Edit, AlertCircle, Inbox, Loader, CircleCheck } from 'lucide-react';
@@ -10,47 +10,51 @@ import Modal from '../../components/common/Modal';
 import { Select, Textarea } from '../../components/common/Input';
 import api from '../../services/api';
 import { enumLabel } from '../../i18n/enums';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 
 export default function FeedbackAdminPage() {
   const { t, language } = useLanguage();
   const { addToast } = useNotification();
   const [feedbackList, setFeedbackList] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedTicket, setSelectedTicket] = useState(null);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [reviewTicket, setReviewTicket] = useState(null);
+  const [deletingTicket, setDeletingTicket] = useState(null);
   const [resolutionForm, setResolutionForm] = useState({ status: '', adminNotes: '' });
   const [resolving, setResolving] = useState(false);
 
-  useEffect(() => {
-    fetchFeedback();
-  }, []);
-
-  const fetchFeedback = async () => {
-    setLoading(true);
+  const fetchFeedback = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const res = await api.get('/feedback');
-      if (res.success) {
+      if (res && res.success) {
         setFeedbackList(res.data || []);
       }
     } catch (err) {
-      console.error(err);
+      if (!isSilent) console.error(err);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchFeedback();
+  }, [fetchFeedback]);
+
+  // Silent auto refresh every 15 seconds
+  useAutoRefresh(fetchFeedback, 15000, !reviewTicket && !deletingTicket);
 
   const handleResolve = async (e) => {
     e.preventDefault();
-    if (!selectedTicket) return;
+    if (!reviewTicket) return;
     setResolving(true);
     try {
-      await api.put(`/feedback/${selectedTicket.id}/status`, {
+      await api.put(`/feedback/${reviewTicket.id}/status`, {
         status: resolutionForm.status,
         adminNotes: resolutionForm.adminNotes
       });
       addToast(t('feedback_admin.saved'), 'success');
-      setSelectedTicket(null);
-      fetchFeedback();
+      setReviewTicket(null);
+      fetchFeedback(true);
     } catch (err) {
       addToast(err.message || t('feedback_admin.update_failed'), 'error');
     } finally {
@@ -60,24 +64,24 @@ export default function FeedbackAdminPage() {
 
   const openDeleteModal = (ticket, e) => {
     e.stopPropagation();
-    setSelectedTicket(ticket);
-    setIsDeleteModalOpen(true);
+    setDeletingTicket(ticket);
   };
 
   const handleDeleteTicket = async () => {
-    if (!selectedTicket) return;
+    if (!deletingTicket) return;
     setResolving(true);
     try {
-      await api.delete(`/feedback/${selectedTicket.id}`);
-      addToast(`Feedback ticket ${selectedTicket.ticket_number} deleted successfully from MySQL`, 'success');
-      setIsDeleteModalOpen(false);
-      fetchFeedback();
+      await api.delete(`/feedback/${deletingTicket.id}`);
+      addToast(`Feedback ticket ${deletingTicket.ticket_number} deleted successfully`, 'success');
+      setDeletingTicket(null);
+      fetchFeedback(true);
     } catch (err) {
       addToast(err.message || t('feedback_admin.delete_failed'), 'error');
     } finally {
       setResolving(false);
     }
   };
+
 
   const columns = [
     {
@@ -123,7 +127,7 @@ export default function FeedbackAdminPage() {
             size="sm"
             variant="outline"
             onClick={() => {
-              setSelectedTicket(row);
+              setReviewTicket(row);
               setResolutionForm({ status: row.status || 'RESOLVED', adminNotes: row.admin_notes || '' });
             }}
             icon={Eye}
@@ -168,20 +172,20 @@ export default function FeedbackAdminPage() {
 
       {/* RESOLVE / RESPOND MODAL */}
       <Modal
-        isOpen={!!selectedTicket && !isDeleteModalOpen}
-        onClose={() => setSelectedTicket(null)}
-        title={`Respond to Feedback Ticket: ${selectedTicket?.ticket_number}`}
+        isOpen={!!reviewTicket}
+        onClose={() => setReviewTicket(null)}
+        title={`Respond to Feedback Ticket: ${reviewTicket?.ticket_number}`}
         size="lg"
       >
-        {selectedTicket && (
+        {reviewTicket && (
           <form noValidate onSubmit={handleResolve} className="space-y-4">
             <div className="bg-slate-50 dark:bg-slate-800/80 p-4 rounded-xl border border-slate-200 dark:border-slate-700 text-xs space-y-2">
               <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400 font-semibold">{t('feedback_admin.category')} <strong className="text-slate-900 dark:text-white">{selectedTicket.category}</strong></span>
-                <span className="text-slate-500 dark:text-slate-400">{t('feedback_admin.from')} <strong className="text-slate-900 dark:text-white">{selectedTicket.reporter_name || t('feedback_admin.anonymous')}</strong></span>
+                <span className="text-slate-500 dark:text-slate-400 font-semibold">{t('feedback_admin.category')} <strong className="text-slate-900 dark:text-white">{reviewTicket.category}</strong></span>
+                <span className="text-slate-500 dark:text-slate-400">{t('feedback_admin.from')} <strong className="text-slate-900 dark:text-white">{reviewTicket.reporter_name || t('feedback_admin.anonymous')}</strong></span>
               </div>
               <p className="text-slate-800 dark:text-slate-200 leading-relaxed font-medium bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-100 dark:border-slate-700">
-                "{selectedTicket.description}"
+                "{reviewTicket.description}"
               </p>
             </div>
 
@@ -209,7 +213,7 @@ export default function FeedbackAdminPage() {
             />
 
             <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-              <Button variant="outline" onClick={() => setSelectedTicket(null)}>{t('common.cancel')}</Button>
+              <Button variant="outline" onClick={() => setReviewTicket(null)}>{t('common.cancel')}</Button>
               <Button type="submit" loading={resolving}>{t('feedback_admin.save_response')}</Button>
             </div>
           </form>
@@ -217,13 +221,13 @@ export default function FeedbackAdminPage() {
       </Modal>
 
       {/* DELETE MODAL */}
-      <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title={t('feedback_admin.confirm_delete')}>
+      <Modal isOpen={!!deletingTicket} onClose={() => setDeletingTicket(null)} title={t('feedback_admin.confirm_delete')}>
         <div className="space-y-4">
           <p className="text-sm text-slate-600 dark:text-slate-300">
-            {t('feedback_admin.confirm_text')} <strong className="text-slate-900 dark:text-white">{selectedTicket?.ticket_number}</strong>?
+            {t('feedback_admin.confirm_text')} <strong className="text-slate-900 dark:text-white">{deletingTicket?.ticket_number}</strong>?
           </p>
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-            <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)}>{t('common.cancel')}</Button>
+            <Button variant="outline" onClick={() => setDeletingTicket(null)}>{t('common.cancel')}</Button>
             <Button variant="danger" loading={resolving} onClick={handleDeleteTicket}>{t('feedback_admin.delete_permanent')}</Button>
           </div>
         </div>
@@ -231,3 +235,5 @@ export default function FeedbackAdminPage() {
     </div>
   );
 }
+
+

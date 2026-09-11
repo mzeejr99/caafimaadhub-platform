@@ -24,31 +24,39 @@ class AuthService {
       throw { status: 400, message: 'Email and password are required', errorCode: 'MISSING_CREDENTIALS' };
     }
 
-    const inputEmail = email.trim().toLowerCase();
-    
-    // 1. Direct user lookup
+    const inputVal = (email || '').trim();
+    const inputLower = inputVal.toLowerCase();
+    const digitsOnly = inputVal.replace(/[^0-9]/g, '');
+
+    // 1. Direct user lookup by Email OR Phone Number
     let user = await db.getOne(
       `SELECT u.*, v.id AS volunteer_profile_id, v.volunteer_id, v.status AS volunteer_status
        FROM users u
        LEFT JOIN volunteers v ON v.user_id = u.id
-       WHERE LOWER(u.email) = ?`,
-      [inputEmail]
+       WHERE LOWER(u.email) = ?
+          OR u.phone = ?
+          OR (LENGTH(?) >= 7 AND (
+              REPLACE(REPLACE(REPLACE(REPLACE(u.phone, ' ', ''), '-', ''), '+', ''), '(', '') = ?
+              OR REPLACE(REPLACE(REPLACE(REPLACE(u.phone, ' ', ''), '-', ''), '+', ''), '(', '') LIKE ?
+          ))
+       LIMIT 1`,
+      [inputLower, inputVal, digitsOnly, digitsOnly, `%${digitsOnly.slice(-7)}`]
     );
 
     // 2. Intelligent Alias Fallback for Demo & Seed Accounts
     if (!user) {
       let targetEmail = null;
-      if (inputEmail.includes('superadmin')) {
-        targetEmail = 'superadmin@gmail.com';
-      } else if (inputEmail.includes('admin@')) {
+      if (inputLower.includes('superadmin')) {
+        targetEmail = 'superadmin@caafimaadhub.so';
+      } else if (inputLower.includes('admin@')) {
         targetEmail = 'admin@example.com';
-      } else if (inputEmail.includes('operat')) {
+      } else if (inputLower.includes('operat')) {
         targetEmail = 'operations@example.com';
-      } else if (inputEmail.includes('analyst')) {
+      } else if (inputLower.includes('analyst')) {
         targetEmail = 'analyst@example.com';
-      } else if (inputEmail.includes('volunt') || inputEmail.includes('chv')) {
+      } else if (inputLower.includes('volunt') || inputLower.includes('chv')) {
         targetEmail = 'volunteer@example.com';
-      } else if (inputEmail.includes('public')) {
+      } else if (inputLower.includes('public')) {
         targetEmail = 'public@example.com';
       }
 
@@ -64,7 +72,7 @@ class AuthService {
     }
 
     if (!user) {
-      throw { status: 401, message: 'Invalid email or password credentials', errorCode: 'INVALID_CREDENTIALS' };
+      throw { status: 401, message: 'Invalid email/phone or password credentials', errorCode: 'INVALID_CREDENTIALS' };
     }
 
     // Check Status Requirements (Pending Approval & Deactivated)
@@ -168,7 +176,7 @@ class AuthService {
         fullName: user.full_name,
         email: user.email,
         phone: user.phone,
-        gender: user.gender || 'OTHER',
+        gender: user.gender || 'FEMALE',
         dateOfBirth: user.date_of_birth,
         profileImageUrl: user.profile_image_url || user.avatar_url,
         avatarUrl: user.avatar_url || user.profile_image_url,
@@ -211,7 +219,7 @@ class AuthService {
     const effectivePhone = (phone || '').trim();
     const effectiveEmail = (email || '').trim().toLowerCase();
     const effectiveAvatar = profileImageUrl || profile_image_url || avatarUrl || avatar_url || null;
-    const effectiveGender = (gender || 'OTHER').toUpperCase();
+    const effectiveGender = String(gender || '').toUpperCase() === 'MALE' ? 'MALE' : 'FEMALE';
     const effectiveDOB = dateOfBirth || date_of_birth || null;
     const effectiveRegion = region || region_name || 'Banadir';
     const effectiveDistrict = district || district_name || 'Hodan';
@@ -250,9 +258,40 @@ class AuthService {
       };
     }
 
+    if (effectiveDOB) {
+      const dobDate = new Date(effectiveDOB);
+      if (!isNaN(dobDate.getTime())) {
+        const today = new Date();
+        let age = today.getFullYear() - dobDate.getFullYear();
+        const monthDiff = today.getMonth() - dobDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dobDate.getDate())) {
+          age--;
+        }
+        if (age < 18) {
+          throw {
+            status: 400,
+            message: `Da'daadu waa ${age} sano. Waa in aad jirtaa ugu yaraan 18 sano (You must be at least 18 years old to register as a volunteer).`,
+            errorCode: 'UNDERAGE_VOLUNTEER'
+          };
+        }
+      }
+    }
+
+
     const existing = await db.getOne(`SELECT id FROM users WHERE LOWER(email) = LOWER(?)`, [effectiveEmail]);
     if (existing) {
-      throw { status: 409, message: 'An account with this email already exists', errorCode: 'EMAIL_ALREADY_EXISTS' };
+      throw { status: 409, message: 'An account with this email already exists / Email-kan horay ayaa loo isticmaalay', errorCode: 'EMAIL_ALREADY_EXISTS' };
+    }
+
+    if (effectivePhone) {
+      const cleanPhone = effectivePhone.replace(/[^0-9]/g, '');
+      const existingPhone = await db.getOne(
+        `SELECT id FROM users WHERE phone = ? OR (LENGTH(?) >= 7 AND REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', ''), '(', '') = ?)`,
+        [effectivePhone, cleanPhone, cleanPhone]
+      );
+      if (existingPhone) {
+        throw { status: 409, message: 'This phone number is already taken. Please use a different phone number / Lambarkan telefoonka horay ayaa loo isticmaalay.', errorCode: 'PHONE_ALREADY_EXISTS' };
+      }
     }
 
     const userId = uuid();
@@ -363,7 +402,18 @@ class AuthService {
 
     const existing = await db.getOne(`SELECT id FROM users WHERE LOWER(email) = LOWER(?)`, [effectiveEmail]);
     if (existing) {
-      throw { status: 409, message: 'An account with this email already exists', errorCode: 'EMAIL_ALREADY_EXISTS' };
+      throw { status: 409, message: 'An account with this email already exists / Email-kan horay ayaa loo isticmaalay', errorCode: 'EMAIL_ALREADY_EXISTS' };
+    }
+
+    if (effectivePhone) {
+      const cleanPhone = effectivePhone.replace(/[^0-9]/g, '');
+      const existingPhone = await db.getOne(
+        `SELECT id FROM users WHERE phone = ? OR (LENGTH(?) >= 7 AND REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', ''), '(', '') = ?)`,
+        [effectivePhone, cleanPhone, cleanPhone]
+      );
+      if (existingPhone) {
+        throw { status: 409, message: 'This phone number is already taken. Please use a different phone number / Lambarkan telefoonka horay ayaa loo isticmaalay.', errorCode: 'PHONE_ALREADY_EXISTS' };
+      }
     }
 
     const userId = uuid();
@@ -474,7 +524,7 @@ class AuthService {
       fullName: user.full_name,
       email: user.email,
       phone: user.phone,
-      gender: user.gender || 'OTHER',
+      gender: user.gender || 'FEMALE',
       dateOfBirth: user.date_of_birth,
       profileImageUrl: user.profile_image_url || user.avatar_url,
       avatarUrl: user.avatar_url || user.profile_image_url,
@@ -519,7 +569,18 @@ class AuthService {
         [email.trim(), userId]
       );
       if (existing) {
-        throw { status: 409, message: 'A user with this email already exists' };
+        throw { status: 409, message: 'A user with this email already exists / Email-kan horay ayaa loo isticmaalay' };
+      }
+    }
+
+    if (phone && phone.trim()) {
+      const cleanPhone = phone.trim().replace(/[^0-9]/g, '');
+      const existingPhone = await db.getOne(
+        `SELECT id FROM users WHERE (phone = ? OR (LENGTH(?) >= 7 AND REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', ''), '(', '') = ?)) AND id != ?`,
+        [phone.trim(), cleanPhone, cleanPhone, userId]
+      );
+      if (existingPhone) {
+        throw { status: 409, message: 'This phone number is already taken. Please use a different phone number / Lambarkan telefoonka horay ayaa loo isticmaalay.' };
       }
     }
 
@@ -558,8 +619,9 @@ class AuthService {
       params.push(effectiveAvatar || null);
     }
     if (gender !== undefined) {
+      const g = String(gender).toUpperCase();
       updates.push('gender = ?');
-      params.push(gender.toUpperCase());
+      params.push(g === 'MALE' ? 'MALE' : 'FEMALE');
     }
     if (dateOfBirth !== undefined || date_of_birth !== undefined) {
       updates.push('date_of_birth = ?');

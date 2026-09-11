@@ -216,14 +216,14 @@ export default function QuizPage() {
   const answeredCount = questions.filter((q) => answers[q.id]).length;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="w-full space-y-6">
       <div className="flex items-center gap-3">
         <Button variant="outline" size="sm" onClick={() => navigate(`/volunteer/training/${courseId}`)} icon={ArrowLeft}>
           {t('common.back')}
         </Button>
         <div>
           <h1 className="text-xl font-extrabold text-slate-900 dark:text-white">{quiz.title || course?.title || t('training.quiz_title')}</h1>
-          <p className="text-xs text-teal-700 dark:text-teal-400 font-medium">
+          <p className="text-xs text-sky-600 dark:text-sky-400 font-medium">
             {t('quiz.answer_all_hint')}
           </p>
         </div>

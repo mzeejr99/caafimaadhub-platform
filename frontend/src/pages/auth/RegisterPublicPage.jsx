@@ -17,6 +17,8 @@ import {
   validatePassword
 } from '../../utils/validation';
 
+import { SOMALIA_DISTRICTS_MAP } from '../../components/common/UserFormModal';
+
 const REGIONS = [
   'Banadir', 'Hiran', 'Bari', 'Woqooyi Galbeed', 'Lower Juba', 'Bay', 'Galguduud',
   'Mudug', 'Nugaal', 'Sool', 'Togdheer', 'Sanaag', 'Middle Juba', 'Lower Shabelle',
@@ -360,16 +362,21 @@ export default function RegisterPublicPage() {
                   label={t('reg_pub.region')}
                   name="region_name"
                   value={form.region_name}
-                  onChange={handleChange}
+                  onChange={(e) => {
+                    const newReg = e.target.value;
+                    setForm(prev => ({ ...prev, region_name: newReg, district_name: '' }));
+                  }}
                   options={REGIONS.map(r => ({ value: r, label: r }))}
+                  required
+                  submitted={submitted}
                 />
-                <Input
+                <Select
                   label={t('reg_pub.district')}
                   name="district_name"
                   value={form.district_name}
                   onChange={handleChange}
-                  validationType="text-only"
-                  placeholder={t('reg_pub.district_ph')}
+                  options={(form.region_name && SOMALIA_DISTRICTS_MAP[form.region_name] ? SOMALIA_DISTRICTS_MAP[form.region_name] : Array.from(new Set(Object.values(SOMALIA_DISTRICTS_MAP).flat())).sort()).map(d => ({ value: d, label: d }))}
+                  required
                   submitted={submitted}
                 />
               </div>

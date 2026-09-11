@@ -4,6 +4,26 @@ const { uuid, generateVolunteerId } = require('../utils/idGenerator');
 const { logAudit } = require('../middleware/auditLogger');
 const { resolveLocation } = require('../utils/locationResolver');
 
+const normalizeRole = (roleStr) => {
+  if (!roleStr) return 'Public';
+  const clean = String(roleStr).toUpperCase().replace(/[\s-_]/g, '');
+  if (['SUPERADMIN', 'SUPER', 'ROLESUPERADMIN', 'SUPER_ADMIN'].includes(clean)) return 'Superadmin';
+  if (['ADMIN', 'OPERATIONAL', 'OPERATIONS', 'ROLEADMIN', 'ROLEOPERATIONAL'].includes(clean)) return 'Admin';
+  if (['DATAANALYST', 'ANALYST', 'ROLEDATAANALYST', 'DATA_ANALYST'].includes(clean)) return 'DataAnalyst';
+  if (['VOLUNTEER', 'ROLEVOLUNTEER', 'CHV', 'COMMUNITYHEALTHVOLUNTEER'].includes(clean)) return 'Volunteer';
+  return 'Public';
+};
+
+const getRoleDbCode = (normalizedRole) => {
+  switch (normalizedRole) {
+    case 'Superadmin': return 'SUPER_ADMIN';
+    case 'Admin': return 'ADMIN';
+    case 'DataAnalyst': return 'DATA_ANALYST';
+    case 'Volunteer': return 'VOLUNTEER';
+    default: return 'PUBLIC_USER';
+  }
+};
+
 const isSuperAdminActor = (actor) => {
   if (!actor) return false;
   return actor.role === 'Superadmin' ||
@@ -36,8 +56,23 @@ class UserService {
     }
 
     if (role && role !== 'ALL') {
-      whereClauses.push("(u.role = ? OR EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = u.id AND (r.name = ? OR r.name = ?)))");
-      params.push(role, role, role.toUpperCase());
+      const cleanRole = String(role).toUpperCase().replace(/[\s-_]/g, '');
+      let variants = [role, role.toUpperCase()];
+      if (cleanRole === 'SUPERADMIN' || cleanRole === 'SUPER_ADMIN') {
+        variants.push('Superadmin', 'SUPER_ADMIN', 'SUPERADMIN', 'role-super-admin');
+      } else if (cleanRole === 'ADMIN' || cleanRole === 'OPERATIONAL') {
+        variants.push('Admin', 'ADMIN', 'Operational', 'OPERATIONAL', 'role-admin', 'role-operational');
+      } else if (cleanRole === 'DATAANALYST' || cleanRole === 'DATA_ANALYST' || cleanRole === 'ANALYST') {
+        variants.push('DataAnalyst', 'DATA_ANALYST', 'DATAANALYST', 'ANALYST', 'role-analyst');
+      } else if (cleanRole === 'VOLUNTEER' || cleanRole === 'CHV') {
+        variants.push('Volunteer', 'VOLUNTEER', 'CHV', 'role-volunteer');
+      } else if (cleanRole === 'PUBLIC' || cleanRole === 'PUBLICUSER' || cleanRole === 'PUBLIC_USER') {
+        variants.push('Public', 'PUBLIC', 'PUBLIC_USER', 'Public User', 'role-public');
+      }
+
+      const placeholders = variants.map(() => '?').join(',');
+      whereClauses.push(`(u.role IN (${placeholders}) OR EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = u.id AND (r.name IN (${placeholders}) OR r.id IN (${placeholders}))))`);
+      params.push(...variants, ...variants, ...variants);
     }
 
     if (status && status !== 'ALL') {
@@ -74,7 +109,8 @@ class UserService {
         [user.id]
       );
       user.roles = roles;
-      user.role = user.role || (roles[0] ? roles[0].name : 'Public');
+      const rawRole = user.role || (roles[0] ? roles[0].name : 'Public');
+      user.role = normalizeRole(rawRole);
       user.profile_image_url = user.profile_image_url || user.avatar_url;
       user.avatar_url = user.avatar_url || user.profile_image_url;
       if (user.languages_spoken && typeof user.languages_spoken === 'string') {
@@ -113,7 +149,8 @@ class UserService {
       [user.id]
     );
     user.roles = roles;
-    user.role = user.role || (roles[0] ? roles[0].name : 'Public');
+    const rawRole = user.role || (roles[0] ? roles[0].name : 'Public');
+    user.role = normalizeRole(rawRole);
     user.profile_image_url = user.profile_image_url || user.avatar_url;
     user.avatar_url = user.avatar_url || user.profile_image_url;
 
@@ -145,7 +182,7 @@ class UserService {
     const effectiveName = (fullName || full_name || '').trim();
     const effectiveEmail = (email || '').trim().toLowerCase();
     const effectivePhone = (phone || '').trim();
-    const effectiveRole = role || 'Admin';
+    const effectiveRole = role || 'Volunteer';
     const effectiveStatus = status || 'active';
     const effectiveAvatar = profileImageUrl || profile_image_url || avatarUrl || avatar_url || null;
 
@@ -153,15 +190,48 @@ class UserService {
       throw { status: 400, message: 'Full name, email, and password are required' };
     }
 
+    const effectiveDOB = dateOfBirth || date_of_birth || null;
+    if (effectiveDOB) {
+      const dobDate = new Date(effectiveDOB);
+      if (!isNaN(dobDate.getTime())) {
+        const today = new Date();
+        let age = today.getFullYear() - dobDate.getFullYear();
+        const monthDiff = today.getMonth() - dobDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dobDate.getDate())) {
+          age--;
+        }
+        if (age < 18) {
+          throw {
+            status: 400,
+            message: `Da'daadu waa ${age} sano. Waa in aad jirtaa ugu yaraan 18 sano (Must be at least 18 years old to register).`,
+            errorCode: 'UNDERAGE_USER'
+          };
+        }
+      }
+    }
+
+    const normalizedRole = normalizeRole(effectiveRole);
+
     // RBAC: Non-superadmin cannot create Superadmin, Admin, or Data Analyst
     const isSuperAdmin = isSuperAdminActor(creator);
-    if (!isSuperAdmin && ['Superadmin', 'Admin', 'DataAnalyst', 'SUPER_ADMIN', 'ADMIN', 'DATA_ANALYST'].includes(effectiveRole)) {
+    if (!isSuperAdmin && ['Superadmin', 'Admin', 'DataAnalyst'].includes(normalizedRole)) {
       throw { status: 403, message: 'Admins can only register Volunteer and Public user accounts.' };
     }
 
     const existing = await db.getOne(`SELECT id FROM users WHERE LOWER(email) = LOWER(?)`, [effectiveEmail]);
     if (existing) {
-      throw { status: 409, message: 'A user with this email already exists' };
+      throw { status: 409, message: 'A user with this email already exists / Email-kan horay ayaa loo isticmaalay' };
+    }
+
+    if (effectivePhone) {
+      const cleanPhone = effectivePhone.replace(/[^0-9]/g, '');
+      const existingPhone = await db.getOne(
+        `SELECT id FROM users WHERE phone = ? OR (LENGTH(?) >= 7 AND REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', ''), '(', '') = ?)`,
+        [effectivePhone, cleanPhone, cleanPhone]
+      );
+      if (existingPhone) {
+        throw { status: 409, message: 'This phone number is already taken. Please use a different phone number / Lambarkan telefoonka horay ayaa loo isticmaalay.' };
+      }
     }
 
     const userId = uuid();
@@ -172,12 +242,7 @@ class UserService {
       try { effectiveLanguages = JSON.parse(effectiveLanguages); } catch (e) { effectiveLanguages = [effectiveLanguages]; }
     }
 
-    // Determine role enum string
-    let normalizedRole = 'Public';
-    if (['Superadmin', 'SUPER_ADMIN', 'role-super-admin'].includes(effectiveRole)) normalizedRole = 'Superadmin';
-    else if (['Admin', 'ADMIN', 'role-admin', 'role-operational', 'Operational'].includes(effectiveRole)) normalizedRole = 'Admin';
-    else if (['DataAnalyst', 'DATA_ANALYST', 'role-analyst'].includes(normalizedRole)) normalizedRole = 'DataAnalyst';
-    else if (['Volunteer', 'VOLUNTEER', 'role-volunteer'].includes(effectiveRole)) normalizedRole = 'Volunteer';
+    const normalizedGender = String(gender || '').toUpperCase() === 'MALE' ? 'MALE' : 'FEMALE';
 
     await db.execute(
       `INSERT INTO users (
@@ -189,7 +254,7 @@ class UserService {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'so', 1, 0, CURRENT_TIMESTAMP)`,
       [
         userId, effectiveEmail, passwordHash, effectiveName, effectivePhone,
-        gender || 'OTHER', dateOfBirth || date_of_birth || null,
+        normalizedGender, dateOfBirth || date_of_birth || null,
         effectiveAvatar, effectiveAvatar, normalizedRole, effectiveStatus,
         region || 'Banadir', district || 'Hodan',
         villageNeighbourhood || village_neighbourhood || null,
@@ -202,13 +267,11 @@ class UserService {
     );
 
     // Link in user_roles
-    let roleCode = 'PUBLIC_USER';
-    if (normalizedRole === 'Superadmin') roleCode = 'SUPER_ADMIN';
-    else if (normalizedRole === 'Admin') roleCode = 'ADMIN';
-    else if (normalizedRole === 'DataAnalyst') roleCode = 'DATA_ANALYST';
-    else if (normalizedRole === 'Volunteer') roleCode = 'VOLUNTEER';
-
-    const roleRow = await db.getOne(`SELECT id FROM roles WHERE name = ? OR name = ?`, [roleCode, normalizedRole]);
+    const roleCode = getRoleDbCode(normalizedRole);
+    const roleRow = await db.getOne(
+      `SELECT id FROM roles WHERE UPPER(name) = ? OR UPPER(name) = ? OR id = ?`,
+      [roleCode, normalizedRole.toUpperCase(), `role-${roleCode.toLowerCase().replace(/_/g, '-')}`]
+    );
     if (roleRow) {
       await db.execute(`INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)`, [userId, roleRow.id]);
     }
@@ -224,7 +287,7 @@ class UserService {
           availability_status, status, profile_completed, registration_date
         ) VALUES (?, ?, ?, ?, ?, 'reg-banadir', 'dist-hodan', ?, ?, ?, ?, 'AVAILABLE', ?, 1, CURRENT_TIMESTAMP)`,
         [
-          volId, userId, volCode, gender || 'OTHER', dateOfBirth || date_of_birth || null,
+          volId, userId, volCode, normalizedGender, dateOfBirth || date_of_birth || null,
           villageNeighbourhood || village_neighbourhood || null,
           educationLevel || education_level || null,
           emergencyContactName || emergency_contact_name || null,
@@ -273,7 +336,18 @@ class UserService {
     if (email && email.trim() && email.toLowerCase().trim() !== user.email.toLowerCase()) {
       const existing = await db.getOne(`SELECT id FROM users WHERE LOWER(email) = LOWER(?) AND id != ?`, [email.trim(), id]);
       if (existing) {
-        throw { status: 409, message: 'A user with this email already exists' };
+        throw { status: 409, message: 'A user with this email already exists / Email-kan horay ayaa loo isticmaalay' };
+      }
+    }
+
+    if (phone && phone.trim() && (!user.phone || phone.trim() !== user.phone.trim())) {
+      const cleanPhone = phone.trim().replace(/[^0-9]/g, '');
+      const existingPhone = await db.getOne(
+        `SELECT id FROM users WHERE (phone = ? OR (LENGTH(?) >= 7 AND REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', ''), '(', '') = ?)) AND id != ?`,
+        [phone.trim(), cleanPhone, cleanPhone, id]
+      );
+      if (existingPhone) {
+        throw { status: 409, message: 'This phone number is already taken. Please use a different phone number / Lambarkan telefoonka horay ayaa loo isticmaalay.' };
       }
     }
 
@@ -298,8 +372,9 @@ class UserService {
       params.push(phone ? phone.trim() : null);
     }
     if (gender !== undefined) {
+      const g = String(gender).toUpperCase();
       updates.push('gender = ?');
-      params.push(gender.toUpperCase());
+      params.push(g === 'MALE' ? 'MALE' : 'FEMALE');
     }
     if (dateOfBirth !== undefined || date_of_birth !== undefined) {
       updates.push('date_of_birth = ?');
@@ -313,23 +388,16 @@ class UserService {
       params.push(effectiveAvatar || null);
     }
     if (role !== undefined && isSuperAdmin) {
-      let normalizedRole = 'Public';
-      if (['Superadmin', 'SUPER_ADMIN', 'role-super-admin'].includes(role)) normalizedRole = 'Superadmin';
-      else if (['Admin', 'ADMIN', 'role-admin', 'role-operational', 'Operational'].includes(role)) normalizedRole = 'Admin';
-      else if (['DataAnalyst', 'DATA_ANALYST', 'role-analyst'].includes(role)) normalizedRole = 'DataAnalyst';
-      else if (['Volunteer', 'VOLUNTEER', 'role-volunteer'].includes(role)) normalizedRole = 'Volunteer';
-
+      const normalizedRole = normalizeRole(role);
       updates.push('role = ?');
       params.push(normalizedRole);
 
       // Also update user_roles
-      let rCode = 'PUBLIC_USER';
-      if (normalizedRole === 'Superadmin') rCode = 'SUPER_ADMIN';
-      else if (normalizedRole === 'Admin') rCode = 'ADMIN';
-      else if (normalizedRole === 'DataAnalyst') rCode = 'DATA_ANALYST';
-      else if (normalizedRole === 'Volunteer') rCode = 'VOLUNTEER';
-
-      const rRow = await db.getOne(`SELECT id FROM roles WHERE name = ?`, [rCode]);
+      const rCode = getRoleDbCode(normalizedRole);
+      const rRow = await db.getOne(
+        `SELECT id FROM roles WHERE UPPER(name) = ? OR UPPER(name) = ? OR id = ?`,
+        [rCode, normalizedRole.toUpperCase(), `role-${rCode.toLowerCase().replace(/_/g, '-')}`]
+      );
       if (rRow) {
         await db.execute(`DELETE FROM user_roles WHERE user_id = ?`, [id]);
         await db.execute(`INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)`, [id, rRow.id]);
@@ -395,8 +463,9 @@ class UserService {
           vParams.push(status.toLowerCase() === 'active' ? 'ACTIVE' : (status.toLowerCase() === 'deactivated' ? 'SUSPENDED' : 'PENDING'));
         }
         if (gender !== undefined) {
+          const g = String(gender).toUpperCase();
           vUpdates.push('gender = ?');
-          vParams.push(gender.toUpperCase());
+          vParams.push(g === 'MALE' ? 'MALE' : 'FEMALE');
         }
         if (effectiveAvatar !== undefined) {
           vUpdates.push('avatar_url = ?');

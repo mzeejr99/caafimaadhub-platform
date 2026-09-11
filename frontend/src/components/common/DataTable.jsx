@@ -33,7 +33,7 @@ export default function DataTable({
                   value={searchQuery}
                   onChange={(e) => onSearchChange(e.target.value)}
                   placeholder={searchPlaceholder || t('table.search_records')}
-                  className="w-full pl-9 pr-4 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                  className="w-full pl-9 pr-4 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
                 />
               </div>
             )}

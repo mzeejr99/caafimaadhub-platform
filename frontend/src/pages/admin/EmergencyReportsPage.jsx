@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import { AlertTriangle, MapPin, Eye, Phone, CheckCircle2, Trash2, Edit, AlertCircle, ShieldAlert, Siren, Activity } from 'lucide-react';
@@ -10,49 +10,53 @@ import Modal from '../../components/common/Modal';
 import { Select, Textarea, Input } from '../../components/common/Input';
 import api from '../../services/api';
 import { enumLabel } from '../../i18n/enums';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 
 export default function EmergencyReportsPage() {
   const { t, language } = useLanguage();
   const { addToast } = useNotification();
   const [emergencies, setEmergencies] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedEmergency, setSelectedEmergency] = useState(null);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [reviewEmergency, setReviewEmergency] = useState(null);
+  const [deletingEmergency, setDeletingEmergency] = useState(null);
   const [statusUpdateForm, setStatusUpdateForm] = useState({ status: '', investigationNotes: '', actionTaken: '' });
   const [updateLoading, setUpdateLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  useEffect(() => {
-    fetchEmergencies();
-  }, []);
-
-  const fetchEmergencies = async () => {
-    setLoading(true);
+  const fetchEmergencies = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const res = await api.get('/emergencies');
-      if (res.success) {
+      if (res && res.success) {
         setEmergencies(res.data || []);
       }
     } catch (err) {
-      console.error(err);
+      if (!isSilent) console.error(err);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchEmergencies();
+  }, [fetchEmergencies]);
+
+  // Silent background refresh every 10 seconds without flickering
+  useAutoRefresh(fetchEmergencies, 10000);
 
   const handleUpdateStatus = async (e) => {
     e.preventDefault();
-    if (!selectedEmergency) return;
+    if (!reviewEmergency) return;
     setUpdateLoading(true);
     try {
-      await api.put(`/emergencies/${selectedEmergency.id}/action`, {
+      await api.put(`/emergencies/${reviewEmergency.id}/action`, {
         status: statusUpdateForm.status,
         investigationNotes: statusUpdateForm.investigationNotes,
         actionTaken: statusUpdateForm.actionTaken
       });
       addToast(t('emerg_admin.updated'), 'success');
-      setSelectedEmergency(null);
-      fetchEmergencies();
+      setReviewEmergency(null);
+      fetchEmergencies(true);
     } catch (err) {
       addToast(err.message || t('emerg_admin.update_failed'), 'error');
     } finally {
@@ -62,18 +66,22 @@ export default function EmergencyReportsPage() {
 
   const openDeleteModal = (item, e) => {
     e.stopPropagation();
-    setSelectedEmergency(item);
-    setIsDeleteModalOpen(true);
+    setDeletingEmergency(item);
   };
 
   const handleDeleteEmergency = async () => {
-    if (!selectedEmergency) return;
+    if (!deletingEmergency) return;
     setUpdateLoading(true);
     try {
-      await api.delete(`/emergencies/${selectedEmergency.id}`);
-      addToast(`Emergency report ${selectedEmergency.report_code} deleted successfully from MySQL`, 'success');
-      setIsDeleteModalOpen(false);
-      fetchEmergencies();
+      await api.delete(`/emergencies/${deletingEmergency.id}`);
+      addToast(
+        language === 'so'
+          ? `Digniinta ${deletingEmergency.report_code} si guul leh ayaa loo tirtiray`
+          : `Emergency report ${deletingEmergency.report_code} deleted successfully`,
+        'success'
+      );
+      setDeletingEmergency(null);
+      fetchEmergencies(true);
     } catch (err) {
       addToast(err.message || t('emerg_admin.delete_failed'), 'error');
     } finally {
@@ -136,7 +144,7 @@ export default function EmergencyReportsPage() {
             size="sm"
             variant="outline"
             onClick={() => {
-              setSelectedEmergency(row);
+              setReviewEmergency(row);
               setStatusUpdateForm({
                 status: row.status || 'INVESTIGATING',
                 investigationNotes: row.investigation_notes || '',
@@ -185,27 +193,27 @@ export default function EmergencyReportsPage() {
 
       {/* REVIEW & RESPOND MODAL */}
       <Modal
-        isOpen={!!selectedEmergency && !isDeleteModalOpen}
-        onClose={() => setSelectedEmergency(null)}
-        title={`Emergency Outbreak Incident: ${selectedEmergency?.report_code}`}
+        isOpen={!!reviewEmergency}
+        onClose={() => setReviewEmergency(null)}
+        title={`Emergency Outbreak Incident: ${reviewEmergency?.report_code}`}
         size="lg"
       >
-        {selectedEmergency && (
+        {reviewEmergency && (
           <form noValidate onSubmit={handleUpdateStatus} className="space-y-4">
             <div className="bg-red-50/50 dark:bg-red-950/40 p-4 rounded-xl border border-red-100 dark:border-red-900/60 grid grid-cols-2 gap-4 text-xs">
               <div>
                 <p className="text-slate-500 dark:text-slate-400 font-semibold">{t('emerg_admin.incident_type')}</p>
-                <p className="text-slate-900 dark:text-white font-bold">{selectedEmergency.emergency_type}</p>
+                <p className="text-slate-900 dark:text-white font-bold">{reviewEmergency.emergency_type}</p>
               </div>
               <div>
                 <p className="text-slate-500 dark:text-slate-400 font-semibold">{t('emerg_admin.severity_cases')}</p>
                 <p className="text-red-700 dark:text-red-400 font-bold">
-                  {selectedEmergency.severity} ({selectedEmergency.suspected_cases_count || selectedEmergency.suspected_cases || 0} Cases)
+                  {reviewEmergency.severity} ({reviewEmergency.suspected_cases_count || reviewEmergency.suspected_cases || 0} Cases)
                 </p>
               </div>
               <div className="col-span-2">
                 <p className="text-slate-500 dark:text-slate-400 font-semibold">{t('emerg_admin.description')}</p>
-                <p className="text-slate-900 dark:text-slate-200 mt-1 leading-relaxed">{selectedEmergency.description}</p>
+                <p className="text-slate-900 dark:text-slate-200 mt-1 leading-relaxed">{reviewEmergency.description}</p>
               </div>
             </div>
 
@@ -247,7 +255,7 @@ export default function EmergencyReportsPage() {
             />
 
             <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-              <Button variant="outline" onClick={() => setSelectedEmergency(null)}>{t('common.cancel')}</Button>
+              <Button variant="outline" onClick={() => setReviewEmergency(null)}>{t('common.cancel')}</Button>
               <Button type="submit" loading={updateLoading}>{t('emerg_admin.save_response')}</Button>
             </div>
           </form>
@@ -255,13 +263,14 @@ export default function EmergencyReportsPage() {
       </Modal>
 
       {/* DELETE MODAL */}
-      <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title={t('emerg_admin.confirm_delete')}>
+      <Modal isOpen={!!deletingEmergency} onClose={() => setDeletingEmergency(null)} title={t('emerg_admin.confirm_delete')}>
         <div className="space-y-4">
-          <p className="text-sm text-slate-600">
-            Are you sure you want to permanently delete emergency outbreak report <strong className="text-slate-900">{selectedEmergency?.report_code}</strong>?
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            {language === 'so' ? 'Ma hubtaa inaad tirtirto digniinta cudurka dillaacay ee ' : 'Are you sure you want to permanently delete emergency outbreak report '}
+            <strong className="text-slate-900 dark:text-white font-bold">{deletingEmergency?.report_code}</strong>?
           </p>
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-            <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)}>{t('common.cancel')}</Button>
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <Button variant="outline" onClick={() => setDeletingEmergency(null)}>{t('common.cancel')}</Button>
             <Button variant="danger" loading={updateLoading} onClick={handleDeleteEmergency}>{t('emerg_admin.delete_permanent')}</Button>
           </div>
         </div>
@@ -269,3 +278,4 @@ export default function EmergencyReportsPage() {
     </div>
   );
 }
+

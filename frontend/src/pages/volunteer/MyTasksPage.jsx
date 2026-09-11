@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useNotification } from '../../contexts/NotificationContext';
@@ -7,6 +7,7 @@ import Card from '../../components/common/Card';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 import api from '../../services/api';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 
 export default function MyTasksPage() {
   const { t } = useLanguage();
@@ -15,23 +16,27 @@ export default function MyTasksPage() {
   const [board, setBoard] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchTasks();
-  }, []);
-
-  const fetchTasks = async () => {
-    setLoading(true);
+  const fetchTasks = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const res = await api.get('/tasks/board');
-      if (res.success) {
+      if (res && res.success) {
         setBoard(res.data);
       }
     } catch (err) {
-      console.error(err);
+      if (!isSilent) console.error(err);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
+
+  // Silent auto refresh every 10 seconds
+  useAutoRefresh(fetchTasks, 10000);
+
 
   const handleAccept = async (taskId) => {
     try {

@@ -88,22 +88,46 @@ async function initSchemaAndSeeds() {
       console.log('[SchemaInit] Database tables already present.');
     }
 
-    // Ensure superadmin@gmail.com exists in SQLite
+    // Ensure superadmin@caafimaadhub.so exists in SQLite
     try {
       const hash = bcrypt.hashSync('super#123', 10);
-      const existing = await db.getOne('SELECT id FROM users WHERE LOWER(email) = ?', ['superadmin@gmail.com']);
+      const existing = await db.getOne('SELECT id FROM users WHERE LOWER(email) = ?', ['superadmin@caafimaadhub.so']);
       if (existing) {
-        await db.execute('UPDATE users SET is_active = 1, is_suspended = 0 WHERE id = ?', [existing.id]);
+        await db.execute('UPDATE users SET password_hash = ?, is_active = 1, is_suspended = 0 WHERE id = ?', [hash, existing.id]);
       } else {
-        const userId = 'usr-superadmin-gmail';
+        const userId = 'usr-superadmin-01';
         await db.execute(
-          'INSERT INTO users (id, full_name, email, password_hash, is_active, is_suspended, created_at) VALUES (?, ?, ?, ?, 1, 0, CURRENT_TIMESTAMP)',
-          [userId, 'Super Administrator', 'superadmin@gmail.com', hash]
+          'INSERT INTO users (id, organization_id, region_id, district_id, full_name, email, password_hash, preferred_language, role, status, is_active, is_suspended, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, CURRENT_TIMESTAMP)',
+          [userId, 'org-fmoh-001', 'reg-banadir', 'dist-hodan', 'Eng. Rooble', 'superadmin@caafimaadhub.so', hash, 'so', 'Superadmin', 'active']
         );
         await db.execute('INSERT OR IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)', [userId, 'role-super-admin']);
       }
     } catch (err) {
-      console.error('[SchemaInit] Error ensuring superadmin@gmail.com:', err.message);
+      console.error('[SchemaInit] Error ensuring superadmin@caafimaadhub.so:', err.message);
+    }
+
+    // Ensure training courses, lessons, quizzes, questions and answers exist
+    try {
+      const courseCount = await db.getOne('SELECT COUNT(*) AS total FROM training_courses');
+      if (!courseCount || courseCount.total < 5) {
+        console.log('[SchemaInit] Ensuring full Ministry training curriculum & quizzes in SQLite...');
+        const seedsPath = path.join(__dirname, '../../../database/seeds.sql');
+        let seedsSql = fs.readFileSync(seedsPath, 'utf8');
+        const statements = splitSqlStatements(seedsSql);
+        sqliteDb.pragma('foreign_keys = OFF');
+        for (const stmt of statements) {
+          if (/INSERT INTO (training_courses|training_lessons|training_quizzes|training_questions|training_answers)/i.test(stmt)) {
+            try {
+              sqliteDb.exec(stmt);
+            } catch (err) {
+              // Ignore duplicate entries
+            }
+          }
+        }
+        sqliteDb.pragma('foreign_keys = ON');
+      }
+    } catch (err) {
+      console.warn('[SchemaInit] Training curriculum check warning:', err.message);
     }
   } else {
     // MySQL mode
@@ -117,12 +141,9 @@ async function initSchemaAndSeeds() {
         let schemaSql = fs.readFileSync(schemaPath, 'utf8');
         let seedsSql = fs.readFileSync(seedsPath, 'utf8');
 
-        const passwordHash = bcrypt.hashSync('Password123!', 10);
+        const passwordHash = bcrypt.hashSync('super#123', 10);
         seedsSql = seedsSql.replace(/\$2a\$10\$[a-zA-Z0-9.\/]+/g, passwordHash);
 
-        // The mysql2 pool runs with multipleStatements disabled, so both scripts are
-        // executed one statement at a time. This also means a single failing INSERT is
-        // reported by name instead of silently aborting the rest of the import.
         await db.execute('SET FOREIGN_KEY_CHECKS = 0;');
         const schemaResult = await runMysqlScript(schemaSql);
         const seedResult = await runMysqlScript(seedsSql, { ignoreDuplicates: true });
@@ -132,7 +153,6 @@ async function initSchemaAndSeeds() {
         if (failures.length > 0) {
           console.error(`[SchemaInit] ${failures.length} statement(s) failed during MySQL import:`);
           failures.forEach(f => console.error(`  [${f.code}] ${f.statement}\n    -> ${f.message}`));
-          console.error('[SchemaInit] Run `npm run migrate:mysql -- --reset` for a clean rebuild.');
         } else {
           console.log('[SchemaInit] MySQL Database schema and initial seeds created successfully!');
         }
@@ -140,16 +160,16 @@ async function initSchemaAndSeeds() {
         console.log('[SchemaInit] MySQL database tables verified.');
       }
 
-      // Ensure superadmin@gmail.com in MySQL
+      // Ensure superadmin@caafimaadhub.so in MySQL
       const hash = bcrypt.hashSync('super#123', 10);
-      const existing = await db.getOne('SELECT id FROM users WHERE LOWER(email) = ?', ['superadmin@gmail.com']);
+      const existing = await db.getOne('SELECT id FROM users WHERE LOWER(email) = ?', ['superadmin@caafimaadhub.so']);
       if (existing) {
-        await db.execute('UPDATE users SET is_active = 1, is_suspended = 0 WHERE id = ?', [existing.id]);
+        await db.execute('UPDATE users SET password_hash = ?, is_active = 1, is_suspended = 0 WHERE id = ?', [hash, existing.id]);
       } else {
-        const userId = 'usr-superadmin-gmail';
+        const userId = 'usr-superadmin-01';
         await db.execute(
-          'INSERT INTO users (id, full_name, email, password_hash, is_active, is_suspended, created_at) VALUES (?, ?, ?, ?, 1, 0, CURRENT_TIMESTAMP)',
-          [userId, 'Super Administrator', 'superadmin@gmail.com', hash]
+          'INSERT INTO users (id, organization_id, region_id, district_id, full_name, email, password_hash, preferred_language, role, status, is_active, is_suspended, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, CURRENT_TIMESTAMP)',
+          [userId, 'org-fmoh-001', 'reg-banadir', 'dist-hodan', 'Eng. Rooble', 'superadmin@caafimaadhub.so', hash, 'so', 'Superadmin', 'active']
         );
         await db.execute('INSERT IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)', [userId, 'role-super-admin']);
       }

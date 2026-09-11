@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -15,6 +15,8 @@ import Modal from '../../components/common/Modal';
 import Card from '../../components/common/Card';
 import { Input, Select, Textarea } from '../../components/common/Input';
 import api from '../../services/api';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
+
 
 const QUICK_TEMPLATES = {
   so: [
@@ -92,12 +94,8 @@ export default function SmsDispatchPage() {
 
   const templates = QUICK_TEMPLATES[language] || QUICK_TEMPLATES.so;
 
-  useEffect(() => {
-    fetchSmsData();
-  }, []);
-
-  const fetchSmsData = async () => {
-    setLoading(true);
+  const fetchSmsData = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const [logsRes, statsRes] = await Promise.all([
         api.get('/notifications/sms-logs', { limit: 100 }).catch(() => ({ success: false, data: [] })),
@@ -118,11 +116,19 @@ export default function SmsDispatchPage() {
         }
       }
     } catch (err) {
-      console.error('Failed to load SMS data:', err);
+      if (!isSilent) console.error('Failed to load SMS data:', err);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchSmsData();
+  }, [fetchSmsData]);
+
+  // Silent auto refresh every 12 seconds
+  useAutoRefresh(fetchSmsData, 12000);
+
 
   const handleSendBroadcast = async (e) => {
     e.preventDefault();
