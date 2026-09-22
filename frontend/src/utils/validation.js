@@ -17,8 +17,8 @@ export const STRICT_EMAIL_REGEX = /^[a-zA-Z][a-zA-Z0-9._%+-]*@[a-zA-Z0-9.-]+\.[a
 // Numbers only (0-9)
 export const NUMBER_ONLY_REGEX = /^[0-9]+$/;
 
-// Phone number (optional leading +, followed by 7-15 digits)
-export const PHONE_REGEX = /^\+?[0-9]{7,15}$/;
+// Phone number (optional leading +, followed by digits and formatting characters)
+export const PHONE_REGEX = /^\+?[0-9\s\-.()]{7,25}$/;
 
 // Password rules
 export const PASSWORD_LETTER_REGEX = /[a-zA-Z]/;
@@ -79,20 +79,37 @@ export function validateNumberOnly(value, fieldName = 'Lambarka', lang = 'so') {
   return { isValid: true, message: '' };
 }
 
-export function validatePhone(value, lang = 'so') {
-  if (!value || value.trim() === '') {
+export function validatePhone(value, lang = 'so', isRequired = true) {
+  if (value === undefined || value === null || String(value).trim() === '') {
+    if (!isRequired) return { isValid: true, message: '' };
     return {
       isValid: false,
       message: lang === 'so' ? 'Lambarka taleefanka waa qasab' : 'Phone number is required'
     };
   }
-  const clean = value.trim();
+  const clean = String(value).trim();
+
+  // Allow digits and standard formatting characters (+, space, hyphen, parens, dots)
   if (!PHONE_REGEX.test(clean)) {
     return {
       isValid: false,
-      message: lang === 'so' ? 'Lambarka taleefanka waa inuu ka koobnaadaa lambarro kaliya (tusaale: +252611234567 ama 0611234567)' : 'Phone number must contain digits only (e.g. +252611234567)'
+      message: lang === 'so'
+        ? 'Lambarka taleefanka waa inuu ka koobnaadaa lambarro kaliya (tusaale: +252611234567 ama 0611234567)'
+        : 'Phone number must contain digits only (e.g. +252611234567 or 0611234567)'
     };
   }
+
+  // Count raw digits (must be 7 to 15 digits)
+  const digitsOnly = clean.replace(/[^0-9]/g, '');
+  if (digitsOnly.length < 7 || digitsOnly.length > 15) {
+    return {
+      isValid: false,
+      message: lang === 'so'
+        ? 'Lambarka taleefanku waa inuu leeyahay 7 ilaa 15 lambar'
+        : 'Phone number must be between 7 and 15 digits'
+    };
+  }
+
   return { isValid: true, message: '' };
 }
 
@@ -130,7 +147,15 @@ export function validatePassword(value, lang = 'so') {
   };
 }
 
-export function validateFutureOrTodayDate(value, fieldName = 'Taariikhda', lang = 'so', allowPast = false) {
+export function getTodayDateString() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function validateFutureOrTodayDate(value, fieldName = 'Taariikhda', lang = 'so', allowPast = false, minDate = null) {
   if (!value || String(value).trim() === '') {
     return {
       isValid: false,
@@ -140,19 +165,44 @@ export function validateFutureOrTodayDate(value, fieldName = 'Taariikhda', lang 
   if (allowPast) {
     return { isValid: true, message: '' };
   }
-  const selected = new Date(value);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  // 1-day timezone buffer so today's date in any timezone is always valid
-  const buffer = new Date(today.getTime() - 24 * 60 * 60 * 1000);
-  if (selected < buffer) {
+
+  let dateStr = '';
+  if (typeof value === 'string') {
+    dateStr = value.split('T')[0].split(' ')[0].trim();
+  } else if (value instanceof Date) {
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, '0');
+    const d = String(value.getDate()).padStart(2, '0');
+    dateStr = `${y}-${m}-${d}`;
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return {
+      isValid: false,
+      message: lang === 'so' ? `${fieldName} qaabkeedu ma saxna (YYYY-MM-DD)` : `Invalid ${fieldName} format`
+    };
+  }
+
+  const todayStr = getTodayDateString();
+  const minRequired = minDate ? (typeof minDate === 'string' ? minDate.split('T')[0].split(' ')[0].trim() : todayStr) : todayStr;
+
+  if (dateStr < minRequired) {
+    if (minDate && minRequired > todayStr) {
+      return {
+        isValid: false,
+        message: lang === 'so'
+          ? `${fieldName} kama horreyn karto taariikhda bilowga (${minRequired})`
+          : `${fieldName} cannot be earlier than start date (${minRequired})`
+      };
+    }
     return {
       isValid: false,
       message: lang === 'so'
-        ? `${fieldName} ma noqon karto taariikh hore u soo dhaaftay`
-        : `${fieldName} cannot be in the past`
+        ? `${fieldName} ma noqon karto taariikh hore u soo dhaaftay (waa in ay tahay maanta ama mustaqbalka)`
+        : `${fieldName} cannot be in the past (must be today or future date)`
     };
   }
+
   return { isValid: true, message: '' };
 }
 

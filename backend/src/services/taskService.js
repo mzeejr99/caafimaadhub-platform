@@ -63,6 +63,9 @@ class TaskService {
       `SELECT t.*, c.name AS campaign_name, c.code AS campaign_code,
               r.name AS region_name, d.name AS district_name, ff.title AS field_form_title,
               (SELECT u.full_name FROM task_assignments ta JOIN volunteers v ON v.id = ta.volunteer_id JOIN users u ON u.id = v.user_id WHERE ta.task_id = t.id LIMIT 1) AS assigned_volunteer_name,
+              (SELECT v.volunteer_id FROM task_assignments ta JOIN volunteers v ON v.id = ta.volunteer_id WHERE ta.task_id = t.id LIMIT 1) AS assigned_volunteer_code,
+              (SELECT u.phone FROM task_assignments ta JOIN volunteers v ON v.id = ta.volunteer_id JOIN users u ON u.id = v.user_id WHERE ta.task_id = t.id LIMIT 1) AS assigned_volunteer_phone,
+              (SELECT u.avatar_url FROM task_assignments ta JOIN volunteers v ON v.id = ta.volunteer_id JOIN users u ON u.id = v.user_id WHERE ta.task_id = t.id LIMIT 1) AS assigned_volunteer_avatar,
               (SELECT ta.volunteer_id FROM task_assignments ta WHERE ta.task_id = t.id LIMIT 1) AS assigned_volunteer_id,
               (SELECT ta.status FROM task_assignments ta WHERE ta.task_id = t.id LIMIT 1) AS assignment_status,
               (SELECT COUNT(*) FROM field_submissions fs WHERE fs.task_id = t.id) AS field_submissions_count
@@ -156,8 +159,15 @@ class TaskService {
       throw { status: 400, message: 'Title, task type, start datetime, and deadline are required' };
     }
 
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const startStr = String(startDatetime).split('T')[0].split(' ')[0];
+    if (startStr < todayStr) {
+      throw { status: 400, message: 'Taariikhda bilaabashada ma noqon karto taariikh hore u soo dhaaftay (Start date cannot be in the past)' };
+    }
+
     if (new Date(deadlineDatetime) < new Date(startDatetime)) {
-      throw { status: 400, message: 'Deadline datetime cannot be earlier than start datetime' };
+      throw { status: 400, message: 'Taariikhda kama dambaysta ah kama horreyn karto bilaabashada (Deadline cannot be earlier than start date)' };
     }
 
     // Check volunteer eligibility & status
@@ -389,7 +399,15 @@ class TaskService {
        LEFT JOIN districts d ON d.id = t.district_id
        LEFT JOIN regions r ON r.id = t.region_id
        WHERE ta.volunteer_id = ? OR ta.volunteer_id = ?
-       ORDER BY t.start_datetime ASC`,
+       ORDER BY
+         CASE ta.status
+           WHEN 'ASSIGNED'     THEN 1
+           WHEN 'ACCEPTED'     THEN 2
+           WHEN 'IN_PROGRESS'  THEN 3
+           WHEN 'COMPLETED'    THEN 4
+           ELSE 5
+         END,
+         t.start_datetime ASC`,
       [effectiveVolunteerId, volunteerIdentifier]
     );
 
@@ -426,7 +444,22 @@ class TaskService {
       overdue: overdueTasks,
       completed: completedTasks,
       pendingReview: pendingReviewTasks,
-      totalCount: allAssignments.length
+      assigned: allAssignments.filter(t => t.assignment_status === 'ASSIGNED'),
+      accepted: allAssignments.filter(t => t.assignment_status === 'ACCEPTED'),
+      in_progress: allAssignments.filter(t => t.assignment_status === 'IN_PROGRESS'),
+      rejected: allAssignments.filter(t => t.assignment_status === 'REJECTED'),
+      all: allAssignments,
+      totalCount: allAssignments.length,
+      counts: {
+        total: allAssignments.length,
+        today: todayTasks.length,
+        upcoming: upcomingTasks.length,
+        overdue: overdueTasks.length,
+        completed: completedTasks.length,
+        assigned: allAssignments.filter(t => t.assignment_status === 'ASSIGNED').length,
+        accepted: allAssignments.filter(t => t.assignment_status === 'ACCEPTED').length,
+        in_progress: allAssignments.filter(t => t.assignment_status === 'IN_PROGRESS').length
+      }
     };
   }
 
@@ -523,6 +556,8 @@ class TaskService {
 
     return await this.getTaskById(task.id);
   }
+
+
 
   /**
    * Delete task

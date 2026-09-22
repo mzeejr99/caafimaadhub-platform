@@ -401,6 +401,8 @@ export default function RegisterVolunteerPage() {
                   label={`${t('reg_vol.dob')} (18+ Sano)`}
                   name="date_of_birth"
                   type="date"
+                  validationType="age-18"
+                  allowPast={true}
                   max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
                   value={form.date_of_birth}
                   onChange={handleChange}

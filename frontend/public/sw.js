@@ -1,8 +1,12 @@
-const CACHE_NAME = 'caafimaadhub-v2';
+const CACHE_NAME = 'caafimaadhub-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json'
+  '/manifest.json',
+  '/pwa-192x192.png',
+  '/pwa-512x512.png',
+  '/maskable-icon-512x512.png',
+  '/apple-touch-icon.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -45,8 +49,10 @@ self.addEventListener('fetch', (event) => {
   // Handle SPA navigation requests (standalone PWA & direct URL visits)
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => {
-        return caches.match('/index.html') || caches.match('/');
+      fetch(event.request).catch(async () => {
+        const cached = (await caches.match('/index.html')) || (await caches.match('/'));
+        if (cached) return cached;
+        return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
       })
     );
     return;
@@ -80,11 +86,13 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         })
-        .catch(() => {
+        .catch(async () => {
           const acceptHeader = event.request.headers ? (event.request.headers.get('accept') || '') : '';
           if (acceptHeader.includes('text/html')) {
-            return caches.match('/index.html');
+            const cachedIndex = await caches.match('/index.html');
+            if (cachedIndex) return cachedIndex;
           }
+          return new Response('', { status: 408, statusText: 'Request Timeout' });
         });
     })
   );

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useNotification } from '../../contexts/NotificationContext';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 import { GraduationCap, BookOpen, Award, Plus, CheckCircle2, Edit, Trash2, AlertCircle, Globe, Users, User } from 'lucide-react';
 import DataTable from '../../components/common/DataTable';
 import StatCard from '../../components/common/StatCard';
@@ -57,24 +58,29 @@ export default function TrainingAdminPage() {
   ];
 
   useEffect(() => {
-    fetchCourses();
+    fetchCourses(false);
     fetchCertificates();
     fetchVolunteers();
   }, []);
 
-  const fetchCourses = async () => {
-    setLoading(true);
+  const fetchCourses = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const res = await api.get('/training');
       if (res.success) {
         setCourses(res.data || []);
       }
+      if (isSilent) {
+        fetchCertificates();
+      }
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
+
+  useAutoRefresh(fetchCourses, 15000, !isAddModalOpen && !isEditModalOpen && !isDeleteModalOpen && !isIssueCertModalOpen);
 
   const fetchCertificates = async () => {
     try {
@@ -346,7 +352,7 @@ export default function TrainingAdminPage() {
           }`}
         >
           <BookOpen className="w-4 h-4" />
-          <span>Curriculum Courses ({courses.length})</span>
+          <span>{language === 'so' ? 'Koorsooyinka Manhajka' : 'Curriculum Courses'} ({courses.length})</span>
         </button>
         <button
           onClick={() => setActiveTab('certificates')}
@@ -357,16 +363,40 @@ export default function TrainingAdminPage() {
           }`}
         >
           <Award className="w-4 h-4" />
-          <span>Issued Certificates ({certificates.length})</span>
+          <span>{language === 'so' ? 'Shahaadooyinka La Bixiyay' : 'Issued Certificates'} ({certificates.length})</span>
         </button>
       </div>
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard value={courses.length} label={t('train_admin.total_courses')} icon={BookOpen} color="teal" subtitle="All training modules" />
-        <StatCard value={certificates.length} label={t('train_admin.issued_certs')} icon={Award} color="emerald" subtitle="Accredited volunteers" />
-        <StatCard value={volunteers.length} label={t('train_admin.registered_chvs')} icon={Users} color="blue" subtitle="Active volunteers" />
-        <StatCard value={[...new Set(courses.map(c => c.category).filter(Boolean))].length} label={t('train_admin.categories')} icon={GraduationCap} color="purple" subtitle="Subject areas" />
+        <StatCard 
+          value={courses.length} 
+          label={t('train_admin.total_courses')} 
+          icon={BookOpen} 
+          color="teal" 
+          subtitle={language === 'so' ? 'Dhammaan qeybaha tababarka' : 'All training modules'} 
+        />
+        <StatCard 
+          value={certificates.length} 
+          label={t('train_admin.issued_certs')} 
+          icon={Award} 
+          color="emerald" 
+          subtitle={language === 'so' ? 'Hawl-wadeennada la aqoonsaday' : 'Accredited volunteers'} 
+        />
+        <StatCard 
+          value={volunteers.length} 
+          label={t('train_admin.registered_chvs')} 
+          icon={Users} 
+          color="blue" 
+          subtitle={language === 'so' ? 'Hawl-wadeennada firfircoon' : 'Active volunteers'} 
+        />
+        <StatCard 
+          value={[...new Set(courses.map(c => c.category).filter(Boolean))].length} 
+          label={t('train_admin.categories')} 
+          icon={GraduationCap} 
+          color="purple" 
+          subtitle={language === 'so' ? 'Qeybaha mawduucyada' : 'Subject areas'} 
+        />
       </div>
 
       {activeTab === 'courses' ? (
@@ -434,6 +464,7 @@ export default function TrainingAdminPage() {
               label={t('train_admin.issue_date')}
               name="issueDate"
               type="date"
+              allowPast={true}
               value={issueForm.issueDate}
               onChange={(e) => setIssueForm({ ...issueForm, issueDate: e.target.value })}
               required

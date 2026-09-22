@@ -1247,5 +1247,56 @@
   "nav_group": {
     "main_menu": "LIISKA GUUD",
     "administration": "MAAMULKA"
+  },
+  "reports": {
+    "title": "Xarunta Warbixinnada",
+    "subtitle": "Dhoofi xogta hawlgalka ee qaabaysan si ay u falanqeeyaan Wasaaradda Caafimaadka, warbixinnada deeq-bixiyayaasha, iyo xisaab-xirrada tirakoobka",
+    "generator": "Soosaaraha Warbixinta",
+    "select_dataset": "Dooro Xogta La Dhoofinayo",
+    "ds_volunteers": "Hawl-wadeennada (CHVs)",
+    "ds_campaigns": "Ololayaasha Caafimaadka",
+    "ds_submissions": "Xog-ururinta Goobta",
+    "ds_inventory": "Qalabka & Dawooyinka",
+    "ds_emergencies": "Digniinaha Cudurrada",
+    "ds_feedback": "Aragtiyaha Bulshada",
+    "start_date": "Taariikhda Bilowga",
+    "end_date": "Taariikhda Dhammaadka",
+    "format": "Nooca Faylka",
+    "fmt_csv": "CSV (Faafinta Xogta)",
+    "fmt_json": "JSON (Xogta Qaabaysan)",
+    "download": "Soo Deji Xogta",
+    "standards": "Heerarka & Shuruucda Qaranka",
+    "compliance": "Waafaqsan Xeerka Ilaalinta Xogta Caafimaadka ee Wasaaradda",
+    "disclaimer": "Dhammaan isku-duwayaasha juqraafiga, digniinaha cudurrada, iyo tilmaamayaasha waxqabadka waxaa loo habeeyay cilmi-baarista tirakoobka iyo warbixinnada lagula xisaabtamo deeq-bixiyayaasha.",
+    "export_failed": "Dhoofinta xogta waa lagu guul-darreystay"
+  },
+  "map": {
+    "title": "Khariidadda GIS",
+    "subtitle": "Nidaamka Xogta Juqraafiga (GIS) ee muujinaya hawl-wadeennada, aagagga ololaha, iyo digniinaha cudurrada ee guud ahaan Soomaaliya",
+    "layers": "Lakabyada:",
+    "volunteers": "Hawl-wadeenno",
+    "campaigns": "Ololayaal",
+    "submissions": "Gudbinno",
+    "emergencies": "Xaalado Deg-deg ah",
+    "region": "Gobolka:",
+    "field_assessment": "Qiimeynta Goobta",
+    "cases": "Kiisaska La Shakisan Yahay:"
+  },
+  "analytics": {
+    "title": "Xog-falanqaynta (BI)",
+    "subtitle": "Xog-ururinta caafimaadka dadweynaha ee heer qaran, isbeddellada cudurrada, iyo cabbirrada waxqabadka hawlgalka",
+    "field_submissions": "Xog-ururinta Goobta",
+    "deployed": "La Geeyay",
+    "submissions_30": "Isbeddelka Xog-ururinta Goobta (30-kii Maalmood ee u Dambeeyay)",
+    "regional_deployment": "Kala-qaybsanaanta Hawl-wadeennada ee Gobollada",
+    "workforce_status": "Xaaladda Shaqaalaha & Hawl-wadeennada",
+    "performance_summary": "Soo-koobidda Waxqabadka Hawlgalka",
+    "task_rate": "Heerka Dhameystirka Hawlaha",
+    "total_tasks": "Wadarta Hawlaha Guud",
+    "accuracy": "Saxnaanta Xogta Goobta",
+    "training_rate": "Heerka Baasitaanka Tababarka",
+    "no_volunteer_data": "Ma jiraan xog hawl-wadeenno oo gobollada ah",
+    "no_status_data": "Ma jiraan xog xaalad shaqaale ah",
+    "no_submission_data": "Ma jiraan warbixinno goobta laga soo gudbiyay 30-kii maalmood ee u dambeeyay"
   }
 }

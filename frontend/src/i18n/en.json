@@ -1247,5 +1247,56 @@
   "nav_group": {
     "main_menu": "MAIN MENU",
     "administration": "ADMINISTRATION"
+  },
+  "reports": {
+    "title": "Reports Center",
+    "subtitle": "Export structured operational data for Ministry of Health analysis, donor reporting, and external statistical audits",
+    "generator": "Report Generator",
+    "select_dataset": "Select Dataset",
+    "ds_volunteers": "Volunteers (CHVs)",
+    "ds_campaigns": "Health Campaigns",
+    "ds_submissions": "Field Submissions",
+    "ds_inventory": "Supplies & Inventory",
+    "ds_emergencies": "Outbreak & Emergency Alerts",
+    "ds_feedback": "Community Feedback",
+    "start_date": "Start Date",
+    "end_date": "End Date",
+    "format": "File Format",
+    "fmt_csv": "CSV Spreadsheet",
+    "fmt_json": "JSON Format",
+    "download": "Download Dataset",
+    "standards": "Regulatory & Standards",
+    "compliance": "Compliant with National Health Data Standards",
+    "disclaimer": "All coordinates, disease outbreak notifications, and volunteer KPIs are sanitized for statistical research and donor accountability reports.",
+    "export_failed": "Export failed"
+  },
+  "map": {
+    "title": "GIS Map Explorer",
+    "subtitle": "Geographic Information System (GIS) visualization of volunteers, campaign zones, and outbreak alerts across Somalia",
+    "layers": "Layers:",
+    "volunteers": "Volunteers",
+    "campaigns": "Campaigns",
+    "submissions": "Submissions",
+    "emergencies": "Emergencies",
+    "region": "Region:",
+    "field_assessment": "Field Assessment",
+    "cases": "Suspected Cases:"
+  },
+  "analytics": {
+    "title": "Analytics & BI",
+    "subtitle": "National public health intelligence, epidemiological trends, and operational performance metrics",
+    "field_submissions": "Field Submissions",
+    "deployed": "Deployed",
+    "submissions_30": "Field Submissions Trend (Last 30 Days)",
+    "regional_deployment": "Regional Volunteer Deployment",
+    "workforce_status": "Volunteer Workforce Status",
+    "performance_summary": "Operational Performance Summary",
+    "task_rate": "Task Completion Rate",
+    "total_tasks": "Total Operations",
+    "accuracy": "Data Accuracy Rate",
+    "training_rate": "Training Pass Rate",
+    "no_volunteer_data": "No regional volunteer data available",
+    "no_status_data": "No workforce status data available",
+    "no_submission_data": "No field submissions in the last 30 days"
   }
 }

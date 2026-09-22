@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useNotification } from '../../contexts/NotificationContext';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 import {
   Users, Plus, Shield, UserCheck, UserX, AlertCircle,
   Mail, Phone, Lock, User, Edit3, Trash2, KeyRound,
   ShieldCheck, Info, Sparkles, Filter, CheckCircle2,
-  Building2, MapPin, Search, Eye, Clock, Check, RefreshCw, X
+  Building2, MapPin, Search, Eye, Clock, Check, X
 } from 'lucide-react';
 import DataTable from '../../components/common/DataTable';
 import StatCard from '../../components/common/StatCard';
@@ -36,11 +37,11 @@ export default function UsersManagementPage() {
   const [actionLoadingId, setActionLoadingId] = useState(null);
 
   useEffect(() => {
-    fetchUsers();
+    fetchUsers(false);
   }, [roleFilter, statusFilter]);
 
-  const fetchUsers = async () => {
-    setLoading(true);
+  const fetchUsers = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const res = await api.get('/users', {
         search: search || undefined,
@@ -53,15 +54,20 @@ export default function UsersManagementPage() {
       }
     } catch (err) {
       console.error('[UsersManagementPage] Fetch error:', err);
-      addToast(language === 'so' ? 'Khalad baa ku yimid soo dejinta isticmaalayaasha' : 'Failed to fetch users', 'error');
+      if (!isSilent) {
+        addToast(language === 'so' ? 'Khalad baa ku yimid soo dejinta isticmaalayaasha' : 'Failed to fetch users', 'error');
+      }
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
 
+  // Silent automatic background refresh every 10 seconds without frontend disturbance
+  useAutoRefresh(fetchUsers, 10000, !isUserModalOpen && !isDeleteModalOpen);
+
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    fetchUsers();
+    fetchUsers(false);
   };
 
   // Open User Modal in various modes
@@ -103,7 +109,7 @@ export default function UsersManagementPage() {
             : (language === 'so' ? 'Xaaladda akoonka waa la beddelay.' : 'Account status updated.'),
           'success'
         );
-        fetchUsers();
+        fetchUsers(true);
       }
     } catch (err) {
       addToast(err.message || 'Failed to update user status', 'error');
@@ -122,7 +128,7 @@ export default function UsersManagementPage() {
         addToast(language === 'so' ? 'Isticmaalaha si guul leh ayaa loo tirtiray' : 'User deleted successfully', 'success');
         setIsDeleteModalOpen(false);
         setSelectedUser(null);
-        fetchUsers();
+        fetchUsers(true);
       }
     } catch (err) {
       addToast(err.message || 'Failed to delete user', 'error');
@@ -134,7 +140,7 @@ export default function UsersManagementPage() {
   // Role pill badge styling with active language translation
   const renderRoleBadge = (roleName) => {
     const role = String(roleName || '').toUpperCase().replace(/[\s-_]/g, '');
-    if (role === 'SUPERADMIN' || role === 'ROLESUPERADMIN') {
+    if (role === 'SUPERADMIN' || role === 'ROLESUPERADMIN' || role === 'SUPER_ADMIN') {
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-300 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800/80 shadow-xs">
           <ShieldCheck className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
@@ -150,7 +156,7 @@ export default function UsersManagementPage() {
         </span>
       );
     }
-    if (role === 'DATAANALYST' || role === 'ANALYST' || role === 'ROLEDATAANALYST') {
+    if (role === 'DATAANALYST' || role === 'ANALYST' || role === 'ROLEDATAANALYST' || role === 'DATA_ANALYST') {
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800/80 shadow-xs">
           <Info className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
@@ -237,16 +243,6 @@ export default function UsersManagementPage() {
         </div>
 
         <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={fetchUsers}
-            disabled={loading}
-            className="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-700 transition-all border border-slate-200 dark:border-slate-700 shadow-xs cursor-pointer disabled:opacity-50"
-            title="Refresh List"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-teal-500' : ''}`} />
-          </button>
-
           <button
             type="button"
             onClick={handleOpenCreate}

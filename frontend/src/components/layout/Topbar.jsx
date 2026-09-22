@@ -5,7 +5,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import {
-  Menu, Search, Bell, LogOut, User, Globe, ChevronDown, Check, Sun, Moon, RefreshCw
+  Menu, Search, Bell, LogOut, User, Globe, ChevronDown, Check, Sun, Moon
 } from 'lucide-react';
 
 export default function Topbar({ onToggleSidebar, onOpenSearch }) {
@@ -21,23 +21,6 @@ export default function Topbar({ onToggleSidebar, onOpenSearch }) {
   const notifRef = useRef(null);
   const userRef = useRef(null);
   const langRef = useRef(null);
-
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const handleAppRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      if ('serviceWorker' in navigator) {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        for (let reg of registrations) {
-          await reg.update().catch(() => {});
-        }
-      }
-    } catch (e) {}
-    setTimeout(() => {
-      window.location.reload();
-    }, 350);
-  };
 
   // Close dropdowns on click outside
   useEffect(() => {
@@ -117,16 +100,6 @@ export default function Topbar({ onToggleSidebar, onOpenSearch }) {
             </div>
           )}
         </div>
-
-        {/* App Refresh / PWA Sync Button */}
-        <button
-          type="button"
-          onClick={handleAppRefresh}
-          className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-200 transition-all cursor-pointer group"
-          title={language === 'so' ? 'Cusboonaysii App-ka (Refresh App)' : 'Refresh App & Sync'}
-        >
-          <RefreshCw className={`w-4 h-4 text-sky-600 dark:text-sky-400 transition-transform ${isRefreshing ? 'animate-spin' : 'group-hover:rotate-180 duration-500'}`} />
-        </button>
 
         {/* Theme Toggle Button */}
         <button

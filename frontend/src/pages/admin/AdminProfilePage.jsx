@@ -133,7 +133,7 @@ export default function AdminProfilePage() {
       const payload = {
         fullName: form.fullName.trim(),
         email: form.email.trim(),
-        phone: form.phone.trim(),
+        phone: form.phone ? form.phone.trim() : null,
         region: form.region,
         avatarUrl: form.avatarUrl || null,
         preferredLanguage: form.preferredLanguage

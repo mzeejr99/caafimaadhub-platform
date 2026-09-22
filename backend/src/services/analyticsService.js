@@ -9,12 +9,12 @@ class AnalyticsService {
     const totalAdmins = await db.getOne(
       `SELECT COUNT(*) AS count FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE r.name IN ('SUPER_ADMIN', 'ADMIN')`
     );
-    const totalVolunteers = await db.getOne(`SELECT COUNT(*) AS count FROM volunteers`);
+    const totalVolunteers = await db.getOne(`SELECT COUNT(DISTINCT v.id) AS count FROM volunteers v JOIN users u ON u.id = v.user_id`);
     const activeCampaigns = await db.getOne(`SELECT COUNT(*) AS count FROM campaigns WHERE status = 'ACTIVE'`);
     const totalOrgs = await db.getOne(`SELECT COUNT(*) AS count FROM organizations`);
     const totalRegions = await db.getOne(`SELECT COUNT(*) AS count FROM regions`);
     const totalFieldReports = await db.getOne(`SELECT COUNT(*) AS count FROM field_submissions`);
-    const pendingVolunteers = await db.getOne(`SELECT COUNT(*) AS count FROM volunteers WHERE status = 'PENDING'`);
+    const pendingVolunteers = await db.getOne(`SELECT COUNT(DISTINCT v.id) AS count FROM volunteers v JOIN users u ON u.id = v.user_id WHERE v.status = 'PENDING'`);
     const pendingReports = await db.getOne(`SELECT COUNT(*) AS count FROM field_submissions WHERE review_status = 'PENDING'`);
 
     // Regional Volunteer Distribution
@@ -22,7 +22,7 @@ class AnalyticsService {
       `SELECT r.name AS region_name, COUNT(v.id) AS volunteer_count,
               SUM(CASE WHEN v.status = 'APPROVED' OR v.status = 'ACTIVE' THEN 1 ELSE 0 END) AS active_volunteers
        FROM regions r
-       LEFT JOIN volunteers v ON v.region_id = r.id
+       LEFT JOIN volunteers v ON v.region_id = r.id AND v.user_id IN (SELECT id FROM users)
        GROUP BY r.id, r.name
        ORDER BY volunteer_count DESC`
     );
@@ -52,14 +52,14 @@ class AnalyticsService {
    * Admin Operations Dashboard
    */
   async getAdminDashboard(regionId = null) {
-    let regionFilter = regionId ? `WHERE region_id = '${regionId}'` : '';
+    let regionFilter = regionId ? `WHERE v.region_id = '${regionId}'` : '';
     const isMysql = db.getClientType() === 'mysql';
 
     const activeVolunteers = await db.getOne(
-      `SELECT COUNT(*) AS count FROM volunteers ${regionFilter ? regionFilter + ' AND ' : 'WHERE '} status IN ('APPROVED', 'ACTIVE')`
+      `SELECT COUNT(DISTINCT v.id) AS count FROM volunteers v JOIN users u ON u.id = v.user_id ${regionFilter ? regionFilter + ' AND ' : 'WHERE '} v.status IN ('APPROVED', 'ACTIVE')`
     );
     const pendingVolunteers = await db.getOne(
-      `SELECT COUNT(*) AS count FROM volunteers ${regionFilter ? regionFilter + ' AND ' : 'WHERE '} status = 'PENDING'`
+      `SELECT COUNT(DISTINCT v.id) AS count FROM volunteers v JOIN users u ON u.id = v.user_id ${regionFilter ? regionFilter + ' AND ' : 'WHERE '} v.status = 'PENDING'`
     );
     const activeCampaigns = await db.getOne(
       `SELECT COUNT(*) AS count FROM campaigns ${regionFilter ? regionFilter + ' AND ' : 'WHERE '} status = 'ACTIVE'`
@@ -200,7 +200,7 @@ class AnalyticsService {
       `SELECT r.name AS region_name, COUNT(v.id) AS volunteer_count,
               SUM(CASE WHEN v.status IN ('APPROVED', 'ACTIVE') THEN 1 ELSE 0 END) AS active_volunteers
        FROM regions r
-       LEFT JOIN volunteers v ON v.region_id = r.id
+       LEFT JOIN volunteers v ON v.region_id = r.id AND v.user_id IN (SELECT id FROM users)
        GROUP BY r.id, r.name
        ORDER BY volunteer_count DESC`
     );
@@ -331,19 +331,43 @@ class AnalyticsService {
 
   /**
    * Public Impact Summary Statistics & Live Platform Datasets
+   * 100% Genuine Database-driven (No hardcoded/mock fallbacks)
    */
   async getPublicStats() {
-    // 1. Core Summary Metrics from Real Database
+    const isMysql = db.getClientType() === 'mysql';
+
+    // 1. Core Summary Metrics directly from Real Database tables
     const activeCampaigns = await db.getOne(`SELECT COUNT(*) AS count FROM campaigns WHERE status = 'ACTIVE'`);
     const totalCampaigns = await db.getOne(`SELECT COUNT(*) AS count FROM campaigns`);
-    const totalVolunteers = await db.getOne(`SELECT COUNT(*) AS count FROM volunteers WHERE status IN ('APPROVED', 'ACTIVE')`);
-    const totalAllVolunteers = await db.getOne(`SELECT COUNT(*) AS count FROM volunteers`);
+    const totalVolunteers = await db.getOne(`SELECT COUNT(DISTINCT v.id) AS count FROM volunteers v JOIN users u ON u.id = v.user_id WHERE v.status IN ('APPROVED', 'ACTIVE')`);
+    const totalAllVolunteers = await db.getOne(`SELECT COUNT(DISTINCT v.id) AS count FROM volunteers v JOIN users u ON u.id = v.user_id`);
     const totalFacilities = await db.getOne(`SELECT COUNT(*) AS count FROM facilities WHERE is_active = 1`);
     const totalSubmissions = await db.getOne(`SELECT COUNT(*) AS count FROM field_submissions`);
+    const approvedSubmissions = await db.getOne(`SELECT COUNT(*) AS count FROM field_submissions WHERE review_status = 'APPROVED'`);
     const totalCertificates = await db.getOne(`SELECT COUNT(*) AS count FROM certificates`);
     const totalRegions = await db.getOne(`SELECT COUNT(*) AS count FROM regions`);
-    const targetPopulationSum = await db.getOne(`SELECT SUM(target_population) AS sum FROM campaigns`);
-    const suppliesCount = await db.getOne(`SELECT COUNT(*) AS count, SUM(quantity_on_hand) AS total_qty FROM inventory_items`);
+    const targetPopulationSum = await db.getOne(`SELECT COALESCE(SUM(target_population), 0) AS sum FROM campaigns`);
+    const suppliesCount = await db.getOne(`SELECT COUNT(*) AS count, COALESCE(SUM(quantity_on_hand), 0) AS total_qty FROM inventory_items`);
+
+    // Real Month-over-Month Submissions Growth calculation
+    const thisMonthSubmissions = await db.getOne(
+      isMysql
+        ? `SELECT COUNT(*) AS count FROM field_submissions WHERE submission_datetime >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')`
+        : `SELECT COUNT(*) AS count FROM field_submissions WHERE submission_datetime >= date('now', 'start of month')`
+    );
+    const lastMonthSubmissions = await db.getOne(
+      isMysql
+        ? `SELECT COUNT(*) AS count FROM field_submissions WHERE submission_datetime >= DATE_SUB(DATE_FORMAT(CURRENT_DATE, '%Y-%m-01'), INTERVAL 1 MONTH) AND submission_datetime < DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')`
+        : `SELECT COUNT(*) AS count FROM field_submissions WHERE submission_datetime >= date('now', 'start of month', '-1 month') AND submission_datetime < date('now', 'start of month')`
+    );
+    const currCount = thisMonthSubmissions ? Number(thisMonthSubmissions.count || 0) : 0;
+    const prevCount = lastMonthSubmissions ? Number(lastMonthSubmissions.count || 0) : 0;
+    let computedGrowth = 0;
+    if (prevCount > 0) {
+      computedGrowth = Math.round(((currCount - prevCount) / prevCount) * 1000) / 10;
+    } else if (currCount > 0) {
+      computedGrowth = 100;
+    }
 
     // 2. Real Active Volunteers List (Column 1)
     const topVolunteers = await db.query(
@@ -355,7 +379,7 @@ class AnalyticsService {
        LEFT JOIN districts d ON d.id = v.district_id
        LEFT JOIN field_submissions fs ON fs.volunteer_id = v.id
        GROUP BY v.id, u.full_name, u.avatar_url, v.status, r.name, d.name
-       ORDER BY CASE WHEN v.status = 'APPROVED' THEN 1 WHEN v.status = 'ACTIVE' THEN 2 ELSE 3 END, submissions_count DESC
+       ORDER BY CASE WHEN v.status = 'APPROVED' THEN 1 WHEN v.status = 'ACTIVE' THEN 2 ELSE 3 END, submissions_count DESC, v.registration_date DESC
        LIMIT 6`
     );
 
@@ -370,7 +394,7 @@ class AnalyticsService {
 
     // 4. Real Regional Coverage (Column 3)
     const regionalCoverage = await db.query(
-      `SELECT r.id, r.name, COUNT(v.id) AS volunteers_count,
+      `SELECT r.id, r.name, COUNT(DISTINCT v.id) AS volunteers_count,
               (SELECT COUNT(*) FROM campaigns c WHERE c.region_id = r.id) AS campaigns_count
        FROM regions r
        LEFT JOIN volunteers v ON v.region_id = r.id
@@ -395,18 +419,63 @@ class AnalyticsService {
        LIMIT 6`
     );
 
-    // 6. Real Weekly Activity Stats (Mon - Sun)
-    const weeklyData = [
-      { day: 'Mon', daySo: 'Isniin', reports: 124, services: 340 },
-      { day: 'Tue', daySo: 'Talaado', reports: 186, services: 410 },
-      { day: 'Wed', daySo: 'Arbaco', reports: 142, services: 290 },
-      { day: 'Thu', daySo: 'Khamiis', reports: 230, services: 510 },
-      { day: 'Fri', daySo: 'Jimco', reports: 98, services: 210 },
-      { day: 'Sat', daySo: 'Sabti', reports: 260, services: 580 },
-      { day: 'Sun', daySo: 'Axad', reports: 195, services: 440 }
+    // 6. Real Weekly Activity Stats (Grouped by weekday from field_submissions)
+    const daysMap = [
+      { key: 1, day: 'Mon', daySo: 'Isniin' },
+      { key: 2, day: 'Tue', daySo: 'Talaado' },
+      { key: 3, day: 'Wed', daySo: 'Arbaco' },
+      { key: 4, day: 'Thu', daySo: 'Khamiis' },
+      { key: 5, day: 'Fri', daySo: 'Jimco' },
+      { key: 6, day: 'Sat', daySo: 'Sabti' },
+      { key: 0, day: 'Sun', daySo: 'Axad' }
     ];
 
-    // 7. Core Health Services from Inventory / Database
+    const dayOfWeekExpr = isMysql
+      ? 'DAYOFWEEK(submission_datetime) - 1'
+      : "CAST(strftime('%w', submission_datetime) AS INTEGER)";
+    const dateSub7 = isMysql
+      ? 'DATE_SUB(CURRENT_DATE, INTERVAL 7 DAY)'
+      : "date('now', '-7 days')";
+
+    let weeklyQuery = await db.query(
+      `SELECT ${dayOfWeekExpr} AS day_idx, COUNT(*) AS reports_count,
+              SUM(CASE WHEN review_status = 'APPROVED' THEN 1 ELSE 0 END) AS services_count
+       FROM field_submissions
+       WHERE submission_datetime >= ${dateSub7}
+       GROUP BY ${dayOfWeekExpr}`
+    );
+
+    // If no records in last 7 days, query all recorded submissions by day of week
+    if (!weeklyQuery || weeklyQuery.length === 0) {
+      weeklyQuery = await db.query(
+        `SELECT ${dayOfWeekExpr} AS day_idx, COUNT(*) AS reports_count,
+                SUM(CASE WHEN review_status = 'APPROVED' THEN 1 ELSE 0 END) AS services_count
+         FROM field_submissions
+         GROUP BY ${dayOfWeekExpr}`
+      );
+    }
+
+    const weeklyActivity = daysMap.map((d) => {
+      const found = (weeklyQuery || []).find((q) => Number(q.day_idx) === Number(d.key));
+      return {
+        day: d.day,
+        daySo: d.daySo,
+        reports: found ? Number(found.reports_count || 0) : 0,
+        services: found ? Number(found.services_count || 0) : 0
+      };
+    });
+
+    // 7. Core Health Services linked to real database inventory stock
+    const inventoryByCategory = await db.query(
+      `SELECT category, COUNT(id) AS item_types, COALESCE(SUM(quantity_on_hand), 0) AS total_qty
+       FROM inventory_items
+       GROUP BY category`
+    );
+    const categoryStockMap = {};
+    (inventoryByCategory || []).forEach((row) => {
+      categoryStockMap[row.category] = Number(row.total_qty || 0);
+    });
+
     const servicesList = [
       {
         id: 'srv-vaccines',
@@ -414,7 +483,8 @@ class AnalyticsService {
         nameEn: 'Immunization & Cold Chain Logistics',
         nameSo: 'Tallaalka & Qaybinta Tallaallada',
         descEn: 'Polio (bOPV/IPV), Measles, BCG, and Pentavalent cold chain delivery across districts.',
-        descSo: 'Gaarsiinta tallaallada Polio, Jadeecada, BCG iyo Pentavalent iyadoo la ilaalinayo heerkulka qabowga.'
+        descSo: 'Gaarsiinta tallaallada Polio, Jadeecada, BCG iyo Pentavalent iyadoo la ilaalinayo heerkulka qabowga.',
+        stockCount: categoryStockMap['VACCINES'] || 0
       },
       {
         id: 'srv-nutrition',
@@ -422,7 +492,8 @@ class AnalyticsService {
         nameEn: 'Nutrition & Malnutrition Screening',
         nameSo: 'Nafaqada & Baaritaanka Nafaqo-darrada',
         descEn: 'MUAC tape screenings, Ready-to-Use Therapeutic Food (Plumpy\'Nut RUTF) and therapeutic milk.',
-        descSo: 'Baaritaanka cabbirka MUAC, qaybinta RUTF (Plumpy\'Nut) iyo caanaha daweynta F-75/F-100.'
+        descSo: 'Baaritaanka cabbirka MUAC, qaybinta RUTF (Plumpy\'Nut) iyo caanaha daweynta F-75/F-100.',
+        stockCount: categoryStockMap['NUTRITION_SUPPLIES'] || 0
       },
       {
         id: 'srv-maternal',
@@ -430,7 +501,8 @@ class AnalyticsService {
         nameEn: 'Maternal & Child Health Services',
         nameSo: 'Daryeelka Hooyada & Dhallaanka',
         descEn: 'Antenatal care counseling, clean delivery kits, Chlorhexidine cord care, and maternal health referrals.',
-        descSo: 'Talo-bixinta xilliga uurka, xirmooyinka dhalmada nadiifka ah, iyo daryeelka xuddunta dhallaanka.'
+        descSo: 'Talo-bixinta xilliga uurka, xirmooyinka dhalmada nadiifka ah, iyo daryeelka xuddunta dhallaanka.',
+        stockCount: categoryStockMap['MATERNAL_SUPPLIES'] || 0
       },
       {
         id: 'srv-malaria',
@@ -438,7 +510,8 @@ class AnalyticsService {
         nameEn: 'Disease Surveillance & Outbreak Response',
         nameSo: 'Dabagalka Cudurrada & Ka-jawaabista Degdegga',
         descEn: 'Malaria RDT rapid diagnostic tests, Coartem treatment, LLIN bed net distribution, and AWD surveillance.',
-        descSo: 'Baaritaannada degdegga ah ee Malaria RDT, daaweynta Coartem, mara kaneecada, iyo dabagalka shubanka.'
+        descSo: 'Baaritaannada degdegga ah ee Malaria RDT, daaweynta Coartem, mara kaneecada, iyo dabagalka shubanka.',
+        stockCount: categoryStockMap['DIAGNOSTIC_KITS'] || 0
       },
       {
         id: 'srv-medicines',
@@ -446,7 +519,8 @@ class AnalyticsService {
         nameEn: 'Essential Medicines & Field Supplies',
         nameSo: 'Dawooyinka Aasaasiga ah & Sahayda Goobta',
         descEn: 'WHO ORS packets, Zinc tablets, Amoxicillin, Paracetamol, Vitamin A supplementation, and deworming.',
-        descSo: 'Biyo-macaanta ORS, kiniinka Zinc, Amoxicillin, Paracetamol, Vitamin A, iyo dawooyinka gooryaanka.'
+        descSo: 'Biyo-macaanta ORS, kiniinka Zinc, Amoxicillin, Paracetamol, Vitamin A, iyo dawooyinka gooryaanka.',
+        stockCount: categoryStockMap['MEDICINES'] || 0
       },
       {
         id: 'srv-training',
@@ -454,27 +528,31 @@ class AnalyticsService {
         nameEn: 'CHV Training & Certified Field Operations',
         nameSo: 'Tababarka & Awood-siinta Volunteers-ka',
         descEn: 'Comprehensive multimedia training modules, quizzes, and QR-verifiable official certifications.',
-        descSo: 'Casharro tababar oo maqal iyo muuqaal ah, imtixaanno, iyo shahaadooyin rasmi ah oo QR leh.'
+        descSo: 'Casharro tababar oo maqal iyo muuqaal ah, imtixaanno, iyo shahaadooyin rasmi ah oo QR leh.',
+        stockCount: totalCertificates ? Number(totalCertificates.count || 0) : 0
       }
     ];
 
+    const rawSubmissionsCount = totalSubmissions ? Number(totalSubmissions.count || 0) : 0;
+    const rawApprovedCount = approvedSubmissions ? Number(approvedSubmissions.count || 0) : 0;
+
     return {
-      activeCampaigns: activeCampaigns ? activeCampaigns.count : 0,
-      totalCampaigns: totalCampaigns ? totalCampaigns.count : 0,
-      totalVolunteers: totalVolunteers ? totalVolunteers.count : (totalAllVolunteers ? totalAllVolunteers.count : 10),
-      totalFacilities: totalFacilities ? totalFacilities.count : 0,
-      totalFieldSubmissions: totalSubmissions ? totalSubmissions.count : 0,
-      totalCertificatesEarned: totalCertificates ? totalCertificates.count : 0,
-      totalRegions: totalRegions ? totalRegions.count : 18,
-      totalPeopleReached: targetPopulationSum && targetPopulationSum.sum ? targetPopulationSum.sum : 380000,
-      totalServicesDelivered: (totalSubmissions ? totalSubmissions.count * 15 : 0) + 4820,
-      totalSuppliesStock: suppliesCount ? suppliesCount.total_qty : 52000,
-      growthPercentage: 20.5,
+      activeCampaigns: activeCampaigns ? Number(activeCampaigns.count || 0) : 0,
+      totalCampaigns: totalCampaigns ? Number(totalCampaigns.count || 0) : 0,
+      totalVolunteers: totalVolunteers ? Number(totalVolunteers.count || 0) : (totalAllVolunteers ? Number(totalAllVolunteers.count || 0) : 0),
+      totalFacilities: totalFacilities ? Number(totalFacilities.count || 0) : 0,
+      totalFieldSubmissions: rawSubmissionsCount,
+      totalCertificatesEarned: totalCertificates ? Number(totalCertificates.count || 0) : 0,
+      totalRegions: totalRegions ? Number(totalRegions.count || 0) : 0,
+      totalPeopleReached: targetPopulationSum && targetPopulationSum.sum ? Number(targetPopulationSum.sum) : 0,
+      totalServicesDelivered: rawApprovedCount > 0 ? rawApprovedCount : rawSubmissionsCount,
+      totalSuppliesStock: suppliesCount && suppliesCount.total_qty ? Number(suppliesCount.total_qty) : 0,
+      growthPercentage: computedGrowth,
       topVolunteers,
       activeCampaignsList,
       regionalCoverage,
       recentReports,
-      weeklyActivity: weeklyData,
+      weeklyActivity,
       services: servicesList
     };
   }

@@ -8,7 +8,7 @@ import { Select, Input } from '../../components/common/Input';
 import api from '../../services/api';
 
 export default function ReportsCenterPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { addToast } = useNotification();
   const [reportType, setReportType] = useState('volunteers');
   const [format, setFormat] = useState('csv');
@@ -82,14 +82,18 @@ export default function ReportsCenterPage() {
           <FileText className="w-7 h-7 text-teal-700 dark:text-teal-400" /> {t('nav.reports')}
         </h1>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          Export structured operational data for Ministry of Health analysis, donor reporting, and external statistical audits
+          {t('reports.subtitle')}
         </p>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6 w-full">
         {/* Left Column: Export Configuration */}
         <div className="lg:col-span-2">
-          <Card title={t('reports.generator')} subtitle="Select parameters and download datasets" icon={FileSpreadsheet}>
+          <Card 
+            title={t('reports.generator')} 
+            subtitle={language === 'so' ? 'Dooro xuduudaha oo soo deji xogta' : 'Select parameters and download datasets'} 
+            icon={FileSpreadsheet}
+          >
             <div className="space-y-4">
               <Select
                 label={t('reports.select_dataset')}
@@ -105,6 +109,7 @@ export default function ReportsCenterPage() {
                   label={t('reports.start_date')}
                   name="startDate"
                   type="date"
+                  allowPast={true}
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                 />
@@ -112,6 +117,7 @@ export default function ReportsCenterPage() {
                   label={t('reports.end_date')}
                   name="endDate"
                   type="date"
+                  allowPast={true}
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                 />
@@ -147,7 +153,7 @@ export default function ReportsCenterPage() {
                 <span>{t('reports.compliance')}</span>
               </div>
               <p className="leading-relaxed">
-                All coordinates, disease outbreak notifications, and volunteer KPIs are sanitized for statistical research and donor accountability reports.
+                {t('reports.disclaimer')}
               </p>
             </div>
           </Card>

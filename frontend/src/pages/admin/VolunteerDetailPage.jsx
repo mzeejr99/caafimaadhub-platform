@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useNotification } from '../../contexts/NotificationContext';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 import { Users, Phone, Mail, MapPin, Award, CheckCircle2, XCircle, ArrowLeft, Loader2, Calendar } from 'lucide-react';
 import Card from '../../components/common/Card';
 import Badge from '../../components/common/Badge';
@@ -17,10 +18,11 @@ export default function VolunteerDetailPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchVolunteer();
+    fetchVolunteer(false);
   }, [id]);
 
-  const fetchVolunteer = async () => {
+  const fetchVolunteer = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const res = await api.get(`/volunteers/${id}`);
       if (res.success) {
@@ -29,9 +31,11 @@ export default function VolunteerDetailPage() {
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
+
+  useAutoRefresh(fetchVolunteer, 12000);
 
   const handleApprove = async () => {
     try {

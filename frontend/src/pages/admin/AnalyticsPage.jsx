@@ -125,7 +125,7 @@ export default function AnalyticsPage() {
           <BarChart3 className="w-7 h-7 text-teal-700 dark:text-teal-400" /> {t('nav.analytics')}
         </h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          National public health intelligence, epidemiological trends, and operational performance metrics
+          {t('analytics.subtitle')}
         </p>
       </div>
 

@@ -787,9 +787,11 @@ export default function AdminDashboard() {
             <PhoneCall className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-base font-extrabold text-slate-900 dark:text-white leading-tight">24/7</p>
-            <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 leading-tight mt-0.5">{t('adash.support_status')}</p>
-            <p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold leading-tight">{t('adash.active')} &rarr;</p>
+            <p className="text-base font-extrabold text-slate-900 dark:text-white leading-tight">
+              {stats?.mapData?.facilities?.length ?? 0}
+            </p>
+            <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 leading-tight mt-0.5">{t('adash.facilities')}</p>
+            <p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold leading-tight">{t('adash.sites')} &rarr;</p>
           </div>
         </div>
       </div>

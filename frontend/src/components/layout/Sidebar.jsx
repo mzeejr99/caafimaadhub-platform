@@ -7,7 +7,7 @@ import {
   LayoutGrid, Users, Megaphone, CheckSquare, ClipboardList, CalendarDays,
   GraduationCap, Package, MessageSquare, AlertTriangle, BarChart3,
   Map, Settings, Shield, ShieldCheck, ScrollText, Heart, X,
-  Building2, KeyRound, ChevronsLeft, Send, User
+  Building2, KeyRound, ChevronsLeft, Send, User, Mail
 } from 'lucide-react';
 
 export default function Sidebar({ isOpen, onClose }) {
@@ -18,9 +18,9 @@ export default function Sidebar({ isOpen, onClose }) {
   const { logout } = useAuth();
 
   const navLinkClass = ({ isActive }) =>
-    `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${
+    `group flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-150 ${
       isActive
-        ? 'bg-[#0ea5e9] text-white font-bold shadow-lg shadow-sky-950/40'
+        ? 'bg-gradient-to-r from-sky-500 to-sky-600 text-white font-bold shadow-lg shadow-sky-950/40 ring-1 ring-sky-300/30'
         : 'text-sky-100/80 hover:bg-sky-800/40 hover:text-white'
     }`;
 
@@ -37,6 +37,7 @@ export default function Sidebar({ isOpen, onClose }) {
     { to: '/admin/sms', icon: Send, label: language === 'so' ? 'Farriimaha SMS-ka' : 'SMS Broadcasts' },
     { to: '/admin/emergencies', icon: AlertTriangle, label: language === 'so' ? 'Digniinaha Cudurrada' : 'Outbreak Alerts' },
     { to: '/admin/feedback', icon: MessageSquare, label: language === 'so' ? 'Aragtiyaha Dadweynaha' : 'Community Feedback' },
+    { to: '/admin/subscribers', icon: Mail, label: language === 'so' ? 'Is-qorashada Wararka' : 'Newsletter Subscribers' },
     { to: '/admin/map', icon: Map, label: language === 'so' ? 'Khariidadda GIS' : 'GIS Map Explorer' },
     { to: '/admin/analytics', icon: BarChart3, label: language === 'so' ? 'Warbixinada & Analytics' : 'Analytics & Reports' },
     { to: '/admin/reports', icon: ScrollText, label: language === 'so' ? 'Xarunta Warbixinta (DHIS2)' : 'Reports & Exports' },
@@ -77,6 +78,7 @@ export default function Sidebar({ isOpen, onClose }) {
     { to: '/volunteer/tasks', icon: CheckSquare, label: language === 'so' ? 'Hawlahayga' : 'My Tasks' },
     { to: '/volunteer/schedule', icon: CalendarDays, label: language === 'so' ? 'Jadwalkayga' : 'My Schedule' },
     { to: '/volunteer/field-data', icon: ClipboardList, label: language === 'so' ? 'Geli Xogta Goobta' : 'Field Data Collection' },
+    { to: '/volunteer/outbreak', icon: AlertTriangle, label: language === 'so' ? 'Digniin Cudur (Outbreak)' : 'Report Outbreak' },
     { to: '/volunteer/training', icon: GraduationCap, label: language === 'so' ? 'Tababarkayga' : 'My Training' },
     { to: '/volunteer/certificates', icon: Shield, label: language === 'so' ? 'Shahaadooyinkayga' : 'Certificates Wallet' },
     { to: '/volunteer/supplies', icon: Package, label: language === 'so' ? 'Dalbo Qalab / Dawo' : 'Supplies Request' },
@@ -160,8 +162,10 @@ export default function Sidebar({ isOpen, onClose }) {
             <div className="space-y-1">
               {activeMenuItems.map((item, idx) => (
                 <NavLink key={idx} to={item.to} className={navLinkClass} onClick={onClose}>
-                  <item.icon className="w-4.5 h-4.5 shrink-0" />
-                  <span>{item.label}</span>
+                  <div className="w-8 h-8 rounded-lg bg-white/[0.08] group-hover:bg-white/15 flex items-center justify-center shrink-0 transition-colors">
+                    <item.icon className="w-4 h-4 shrink-0" />
+                  </div>
+                  <span className="truncate">{item.label}</span>
                 </NavLink>
               ))}
             </div>
@@ -176,8 +180,10 @@ export default function Sidebar({ isOpen, onClose }) {
               <div className="space-y-1">
                 {adminMenuItems.map((item, idx) => (
                   <NavLink key={idx} to={item.to} className={navLinkClass} onClick={onClose}>
-                    <item.icon className="w-4.5 h-4.5 shrink-0" />
-                    <span>{item.label}</span>
+                    <div className="w-8 h-8 rounded-lg bg-white/[0.08] group-hover:bg-white/15 flex items-center justify-center shrink-0 transition-colors">
+                      <item.icon className="w-4 h-4 shrink-0" />
+                    </div>
+                    <span className="truncate">{item.label}</span>
                   </NavLink>
                 ))}
               </div>

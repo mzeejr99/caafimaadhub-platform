@@ -432,6 +432,8 @@ export default function VolunteersListPage() {
                 label={`${language === 'so' ? 'Taariikhda Dhalashada' : 'Date of Birth'} (18+ Sano)`}
                 name="date_of_birth"
                 type="date"
+                validationType="age-18"
+                allowPast={true}
                 max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
                 value={addForm.date_of_birth}
                 onChange={(e) => setAddForm({ ...addForm, date_of_birth: e.target.value })}

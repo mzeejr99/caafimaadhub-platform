@@ -5,8 +5,9 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node src/server.js",
+    "dev": "node --watch src/server.js",
     "seed": "node src/database/seedRunner.js",
+    "seed:operational": "node src/database/seed_master_operational.js",
     "migrate:mysql": "node migrate_to_mysql.js",
     "test": "jest --runInBand --detectOpenHandles --forceExit"
   },

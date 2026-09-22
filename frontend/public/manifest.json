@@ -1,13 +1,38 @@
 {
+  "id": "/",
   "short_name": "CaafimaadHub",
   "name": "CaafimaadHub — CHV Health Platform",
   "description": "Community Health Volunteer Operations Platform for Somalia",
   "icons": [
     {
+      "src": "/pwa-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/maskable-icon-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/maskable-icon-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    },
+    {
       "src": "/icon.svg",
       "type": "image/svg+xml",
-      "sizes": "192x192 512x512",
-      "purpose": "any maskable"
+      "sizes": "any",
+      "purpose": "any"
     }
   ],
   "start_url": "/",
@@ -15,5 +40,15 @@
   "background_color": "#0F766E",
   "theme_color": "#0F766E",
   "display": "standalone",
-  "orientation": "portrait"
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "portrait",
+  "categories": [
+    "medical",
+    "health",
+    "productivity"
+  ],
+  "prefer_related_applications": false
 }

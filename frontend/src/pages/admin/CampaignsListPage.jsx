@@ -10,7 +10,7 @@ import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import { Input, Select, Textarea } from '../../components/common/Input';
 import api from '../../services/api';
-import { validateNumberOnly, validateFutureOrTodayDate } from '../../utils/validation';
+import { validateNumberOnly, validateFutureOrTodayDate, getTodayDateString } from '../../utils/validation';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 
 
@@ -111,7 +111,7 @@ export default function CampaignsListPage() {
       return;
     }
 
-    const startCheck = validateFutureOrTodayDate(form.start_date, 'Taariikhda bilaabashada (Start Date)', language);
+    const startCheck = validateFutureOrTodayDate(form.start_date, language === 'so' ? 'Taariikhda bilaabashada (Start Date)' : 'Start Date', language);
     if (!startCheck.isValid) {
       setModalError(startCheck.message);
       return;
@@ -122,8 +122,9 @@ export default function CampaignsListPage() {
       return;
     }
 
-    if (new Date(form.end_date) < new Date(form.start_date)) {
-      setModalError(language === 'so' ? 'Taariikhda dhammaadku kama horreyn karto taariikhda bilaabashada' : 'End date cannot be earlier than start date');
+    const endCheck = validateFutureOrTodayDate(form.end_date, language === 'so' ? 'Taariikhda dhammaadka (End Date)' : 'End Date', language, false, form.start_date);
+    if (!endCheck.isValid) {
+      setModalError(endCheck.message);
       return;
     }
 
@@ -458,6 +459,8 @@ export default function CampaignsListPage() {
               label={language === 'so' ? 'Taariikhda Bilowga *' : 'Start Date *'}
               name="start_date"
               type="date"
+              min={getTodayDateString()}
+              validationType="future-date"
               value={form.start_date}
               onChange={(e) => setForm({ ...form, start_date: e.target.value })}
               required
@@ -467,6 +470,8 @@ export default function CampaignsListPage() {
               label={language === 'so' ? 'Taariikhda Dhammaadka *' : 'End Date *'}
               name="end_date"
               type="date"
+              min={form.start_date || getTodayDateString()}
+              validationType="future-date"
               value={form.end_date}
               onChange={(e) => setForm({ ...form, end_date: e.target.value })}
               required

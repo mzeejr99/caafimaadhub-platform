@@ -187,8 +187,8 @@ SELECT 'role-public', `id` FROM `permissions`
 WHERE `code` IN ('campaigns.view', 'feedback.create', 'emergencies.create');
 
 -- 8. Authentic Users (Only Superadmin: superadmin@caafimaadhub.so / super#123)
-INSERT INTO `users` (`id`, `organization_id`, `region_id`, `district_id`, `full_name`, `email`, `phone`, `password_hash`, `preferred_language`, `is_active`, `is_suspended`) VALUES
-('usr-superadmin-01', 'org-fmoh-001', 'reg-banadir', 'dist-hodan', 'Super Administrator', 'superadmin@caafimaadhub.so', '+252 61 5111111', '$2a$10$w8mS8U5e8Y6bE6dZtJ8u1O9hI.1kRz0F1mG2n3p4q5r6s7t8u9v0w', 'so', 1, 0);
+INSERT INTO `users` (`id`, `organization_id`, `region_id`, `district_id`, `full_name`, `email`, `phone`, `password_hash`, `preferred_language`, `role`, `status`, `is_active`, `is_suspended`) VALUES
+('usr-superadmin-01', 'org-fmoh-001', 'reg-banadir', 'dist-hodan', 'Super Administrator', 'superadmin@caafimaadhub.so', '+252 61 5111111', '$2a$10$w8mS8U5e8Y6bE6dZtJ8u1O9hI.1kRz0F1mG2n3p4q5r6s7t8u9v0w', 'so', 'Superadmin', 'active', 1, 0);
 
 -- Role Assignments
 INSERT INTO `user_roles` (`user_id`, `role_id`) VALUES

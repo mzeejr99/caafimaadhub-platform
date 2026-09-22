@@ -80,14 +80,18 @@ export default function VolunteerProfilePage() {
       return;
     }
 
-    if (!form.email || !validateEmail(form.email)) {
-      setError(t('validation.invalid_email'));
+    const emailCheck = validateEmail(form.email, language);
+    if (!emailCheck.isValid) {
+      setError(emailCheck.message);
       return;
     }
 
-    if (!form.phone || !validatePhone(form.phone)) {
-      setError(t('validation.invalid_phone'));
-      return;
+    if (form.phone && form.phone.trim()) {
+      const phoneCheck = validatePhone(form.phone, language);
+      if (!phoneCheck.isValid) {
+        setError(phoneCheck.message);
+        return;
+      }
     }
 
     if (form.password) {

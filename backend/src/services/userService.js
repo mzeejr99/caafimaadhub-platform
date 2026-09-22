@@ -11,6 +11,7 @@ const normalizeRole = (roleStr) => {
   if (['ADMIN', 'OPERATIONAL', 'OPERATIONS', 'ROLEADMIN', 'ROLEOPERATIONAL'].includes(clean)) return 'Admin';
   if (['DATAANALYST', 'ANALYST', 'ROLEDATAANALYST', 'DATA_ANALYST'].includes(clean)) return 'DataAnalyst';
   if (['VOLUNTEER', 'ROLEVOLUNTEER', 'CHV', 'COMMUNITYHEALTHVOLUNTEER'].includes(clean)) return 'Volunteer';
+  if (['PUBLIC', 'PUBLICUSER', 'ROLEPUBLIC', 'PUBLIC_USER'].includes(clean)) return 'Public';
   return 'Public';
 };
 
@@ -60,19 +61,34 @@ class UserService {
       let variants = [role, role.toUpperCase()];
       if (cleanRole === 'SUPERADMIN' || cleanRole === 'SUPER_ADMIN') {
         variants.push('Superadmin', 'SUPER_ADMIN', 'SUPERADMIN', 'role-super-admin');
+        const placeholders = variants.map(() => '?').join(',');
+        whereClauses.push(`(u.role IN (${placeholders}) OR EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = u.id AND (r.name IN (${placeholders}) OR r.id IN (${placeholders}))))`);
+        params.push(...variants, ...variants, ...variants);
       } else if (cleanRole === 'ADMIN' || cleanRole === 'OPERATIONAL') {
         variants.push('Admin', 'ADMIN', 'Operational', 'OPERATIONAL', 'role-admin', 'role-operational');
+        const placeholders = variants.map(() => '?').join(',');
+        whereClauses.push(`(u.role IN (${placeholders}) OR EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = u.id AND (r.name IN (${placeholders}) OR r.id IN (${placeholders}))))`);
+        params.push(...variants, ...variants, ...variants);
       } else if (cleanRole === 'DATAANALYST' || cleanRole === 'DATA_ANALYST' || cleanRole === 'ANALYST') {
         variants.push('DataAnalyst', 'DATA_ANALYST', 'DATAANALYST', 'ANALYST', 'role-analyst');
+        const placeholders = variants.map(() => '?').join(',');
+        whereClauses.push(`(u.role IN (${placeholders}) OR EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = u.id AND (r.name IN (${placeholders}) OR r.id IN (${placeholders}))))`);
+        params.push(...variants, ...variants, ...variants);
       } else if (cleanRole === 'VOLUNTEER' || cleanRole === 'CHV') {
         variants.push('Volunteer', 'VOLUNTEER', 'CHV', 'role-volunteer');
+        const placeholders = variants.map(() => '?').join(',');
+        whereClauses.push(`(u.role IN (${placeholders}) OR EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = u.id AND (r.name IN (${placeholders}) OR r.id IN (${placeholders}))))`);
+        params.push(...variants, ...variants, ...variants);
       } else if (cleanRole === 'PUBLIC' || cleanRole === 'PUBLICUSER' || cleanRole === 'PUBLIC_USER') {
         variants.push('Public', 'PUBLIC', 'PUBLIC_USER', 'Public User', 'role-public');
+        const placeholders = variants.map(() => '?').join(',');
+        whereClauses.push(`(
+          (u.role IN (${placeholders}) OR EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = u.id AND (r.name IN (${placeholders}) OR r.id IN (${placeholders}))))
+          AND NOT EXISTS (SELECT 1 FROM user_roles ur2 JOIN roles r2 ON r2.id = ur2.role_id WHERE ur2.user_id = u.id AND r2.name IN ('SUPER_ADMIN', 'ADMIN', 'OPERATIONAL', 'DATA_ANALYST', 'VOLUNTEER'))
+          AND u.role NOT IN ('Superadmin', 'Admin', 'DataAnalyst', 'Volunteer')
+        )`);
+        params.push(...variants, ...variants, ...variants);
       }
-
-      const placeholders = variants.map(() => '?').join(',');
-      whereClauses.push(`(u.role IN (${placeholders}) OR EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = u.id AND (r.name IN (${placeholders}) OR r.id IN (${placeholders}))))`);
-      params.push(...variants, ...variants, ...variants);
     }
 
     if (status && status !== 'ALL') {
@@ -109,7 +125,7 @@ class UserService {
         [user.id]
       );
       user.roles = roles;
-      const rawRole = user.role || (roles[0] ? roles[0].name : 'Public');
+      const rawRole = (roles && roles.length > 0 && roles[0].name) ? roles[0].name : (user.role || 'Public');
       user.role = normalizeRole(rawRole);
       user.profile_image_url = user.profile_image_url || user.avatar_url;
       user.avatar_url = user.avatar_url || user.profile_image_url;
@@ -149,7 +165,7 @@ class UserService {
       [user.id]
     );
     user.roles = roles;
-    const rawRole = user.role || (roles[0] ? roles[0].name : 'Public');
+    const rawRole = (roles && roles.length > 0 && roles[0].name) ? roles[0].name : (user.role || 'Public');
     user.role = normalizeRole(rawRole);
     user.profile_image_url = user.profile_image_url || user.avatar_url;
     user.avatar_url = user.avatar_url || user.profile_image_url;

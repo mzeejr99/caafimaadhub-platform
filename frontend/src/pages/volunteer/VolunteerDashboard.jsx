@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import {
   CheckSquare, ClipboardList, BookOpen, Award, Truck, ArrowRight,
-  MapPin, Clock, CheckCircle2, AlertCircle, Loader2
+  MapPin, Clock, CheckCircle2, AlertCircle, Loader2, AlertTriangle, ShieldAlert, Radio
 } from 'lucide-react';
 import Card from '../../components/common/Card';
 import Badge from '../../components/common/Badge';
@@ -14,7 +14,7 @@ import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 
 export default function VolunteerDashboard() {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
   const [board, setBoard] = useState(null);
   const [certificatesCount, setCertificatesCount] = useState(0);
@@ -82,6 +82,41 @@ export default function VolunteerDashboard() {
             {t('volunteer_portal.submit_report')}
           </Button>
         </div>
+      </div>
+
+      {/* Frontline Disease Outbreak Early Warning Banner */}
+      <div className="rounded-2xl p-5 bg-gradient-to-r from-red-600 via-rose-700 to-red-800 text-white shadow-lg border border-red-500/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-xl bg-white/15 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/20 shadow-inner">
+            <AlertTriangle className="w-6 h-6 text-white animate-pulse" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full">
+                {language === 'so' ? 'GURMAD DEGDEG AH' : 'EARLY WARNING'}
+              </span>
+              <span className="text-[11px] text-red-100 flex items-center gap-1 font-mono">
+                <span className="w-2 h-2 rounded-full bg-red-300 animate-ping inline-block"></span>
+                {language === 'so' ? 'MoH Surveillance Live' : 'MoH Surveillance Live'}
+              </span>
+            </div>
+            <h3 className="text-base sm:text-lg font-extrabold mt-0.5 text-white">
+              {language === 'so' ? 'Soo Sheeg Cudur Dillaacay (Report Outbreak)' : 'Report Epidemic / Disease Outbreak'}
+            </h3>
+            <p className="text-xs text-red-100/90 mt-0.5">
+              {language === 'so'
+                ? 'Aragtay shuban-biyood, jadeeco, ama bukaanro badan? Toos ugu gudbi maamulka degmada.'
+                : 'Identified clusters of cholera, measles, or acute infection? Alert district response teams immediately.'}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => navigate('/volunteer/outbreak')}
+          className="shrink-0 px-4 py-2.5 rounded-xl bg-white text-red-700 hover:bg-red-50 active:scale-95 text-xs font-extrabold shadow-md transition-all flex items-center gap-2 cursor-pointer"
+        >
+          <ShieldAlert className="w-4 h-4 text-red-600" />
+          <span>{language === 'so' ? 'Gudbi Digniin Hadda' : 'Report Outbreak Now'}</span>
+        </button>
       </div>
 
       {/* Quick Stat Counters */}

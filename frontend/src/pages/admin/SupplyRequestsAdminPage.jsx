@@ -163,10 +163,34 @@ export default function SupplyRequestsAdminPage() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard value={requests.length} label={t('supply_admin.total')} icon={ListOrdered} color="teal" subtitle="All supply requests" />
-        <StatCard value={requests.filter(r => r.status === 'REQUESTED' || r.status === 'PENDING').length} label={t('supply_admin.pending')} icon={Clock} color="amber" subtitle="Awaiting approval" />
-        <StatCard value={requests.filter(r => r.status === 'ISSUED' || r.status === 'ACCEPTED').length} label={t('supply_admin.approved')} icon={CheckCircle2} color="emerald" subtitle="Fulfilled requests" />
-        <StatCard value={requests.filter(r => r.status === 'REJECTED').length} label={t('supply_admin.rejected')} icon={XCircle} color="red" subtitle="Denied requests" />
+        <StatCard 
+          value={requests.length} 
+          label={t('supply_admin.total')} 
+          icon={ListOrdered} 
+          color="teal" 
+          subtitle={language === 'so' ? 'Dhammaan codsiyada qalabka' : 'All supply requests'} 
+        />
+        <StatCard 
+          value={requests.filter(r => r.status === 'REQUESTED' || r.status === 'PENDING').length} 
+          label={t('supply_admin.pending')} 
+          icon={Clock} 
+          color="amber" 
+          subtitle={language === 'so' ? 'Sugaya oggolaanshaha' : 'Awaiting approval'} 
+        />
+        <StatCard 
+          value={requests.filter(r => r.status === 'ISSUED' || r.status === 'ACCEPTED').length} 
+          label={t('supply_admin.approved')} 
+          icon={CheckCircle2} 
+          color="emerald" 
+          subtitle={language === 'so' ? 'Codsiyada la fuliyay' : 'Fulfilled requests'} 
+        />
+        <StatCard 
+          value={requests.filter(r => r.status === 'REJECTED').length} 
+          label={t('supply_admin.rejected')} 
+          icon={XCircle} 
+          color="red" 
+          subtitle={language === 'so' ? 'Codsiyada la diiday' : 'Denied requests'} 
+        />
       </div>
 
       <DataTable columns={columns} data={requests} loading={loading} />

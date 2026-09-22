@@ -15,6 +15,17 @@ const PASSWORD_LETTER_REGEX = /[a-zA-Z]/;
 const PASSWORD_NUMBER_REGEX = /[0-9]/;
 const PASSWORD_SPECIAL_REGEX = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/;
 
+const normalizeRole = (roleStr) => {
+  if (!roleStr) return 'PUBLIC_USER';
+  const clean = String(roleStr).toUpperCase().replace(/[\s-_]/g, '');
+  if (['SUPERADMIN', 'SUPER', 'ROLESUPERADMIN', 'SUPER_ADMIN'].includes(clean)) return 'SUPER_ADMIN';
+  if (['ADMIN', 'OPERATIONAL', 'OPERATIONS', 'ROLEADMIN', 'ROLEOPERATIONAL'].includes(clean)) return 'ADMIN';
+  if (['DATAANALYST', 'ANALYST', 'ROLEDATAANALYST', 'DATA_ANALYST'].includes(clean)) return 'DATA_ANALYST';
+  if (['VOLUNTEER', 'ROLEVOLUNTEER', 'CHV', 'COMMUNITYHEALTHVOLUNTEER'].includes(clean)) return 'VOLUNTEER';
+  if (['PUBLIC', 'PUBLICUSER', 'ROLEPUBLIC', 'PUBLIC_USER'].includes(clean)) return 'PUBLIC_USER';
+  return String(roleStr).toUpperCase();
+};
+
 class AuthService {
   /**
    * User Login with email and password
@@ -48,16 +59,14 @@ class AuthService {
       let targetEmail = null;
       if (inputLower.includes('superadmin')) {
         targetEmail = 'superadmin@caafimaadhub.so';
-      } else if (inputLower.includes('admin@')) {
-        targetEmail = 'admin@example.com';
-      } else if (inputLower.includes('operat')) {
-        targetEmail = 'operations@example.com';
-      } else if (inputLower.includes('analyst')) {
-        targetEmail = 'analyst@example.com';
-      } else if (inputLower.includes('volunt') || inputLower.includes('chv')) {
-        targetEmail = 'volunteer@example.com';
-      } else if (inputLower.includes('public')) {
-        targetEmail = 'public@example.com';
+      } else if (inputLower.includes('admin') || inputLower.includes('operat')) {
+        targetEmail = 'admin1@caafimaadhub.so';
+      } else if (inputLower.includes('analyst') || inputLower.includes('analy')) {
+        targetEmail = 'analy1@caafimaadhub.so';
+      } else if (inputLower.includes('volunt') || inputLower.includes('chv') || inputLower.includes('vol')) {
+        targetEmail = 'vol1@caafimaadhub.so';
+      } else if (inputLower.includes('public') || inputLower.includes('pub')) {
+        targetEmail = 'pub1@caafimaadhub.so';
       }
 
       if (targetEmail) {
@@ -118,11 +127,12 @@ class AuthService {
       [user.id]
     );
     const roles = rolesRows.map(r => r.name);
-    const primaryRole = (roles && roles.length > 0) ? roles[0] : (user.role || 'Public');
+    const rawPrimaryRole = (roles && roles.length > 0) ? roles[0] : (user.role || 'Public');
+    const primaryRole = normalizeRole(rawPrimaryRole);
 
     // Fetch permissions
     let permissions = [];
-    if (roles.includes('SUPER_ADMIN') || user.role === 'Superadmin') {
+    if (roles.includes('SUPER_ADMIN') || primaryRole === 'SUPER_ADMIN' || primaryRole === 'Superadmin' || user.role === 'Superadmin') {
       const allPerms = await db.query(`SELECT code FROM permissions`);
       permissions = allPerms.map(p => p.code);
     } else {
@@ -493,10 +503,11 @@ class AuthService {
       [userId]
     );
     const roles = rolesRows.map(r => r.name);
-    const primaryRole = (roles && roles.length > 0) ? roles[0] : (user.role || 'Public');
+    const rawPrimaryRole = (roles && roles.length > 0) ? roles[0] : (user.role || 'Public');
+    const primaryRole = normalizeRole(rawPrimaryRole);
 
     let permissions = [];
-    if (roles.includes('SUPER_ADMIN') || primaryRole === 'Superadmin') {
+    if (roles.includes('SUPER_ADMIN') || primaryRole === 'Superadmin' || user.role === 'Superadmin') {
       const allPerms = await db.query(`SELECT code FROM permissions`);
       permissions = allPerms.map(p => p.code);
     } else {

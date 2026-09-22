@@ -98,7 +98,7 @@ describe('CaafimaadHub Platform API Test Suite', () => {
       .send({
         fullName: 'Aamina Warsame',
         email: `aamina.${Date.now()}@example.com`,
-        phone: '+252 61 8889900',
+        phone: `+252 61 ${Math.floor(1000000 + Math.random() * 9000000)}`,
         password: 'Password123!',
         region_name: 'Banadir',
         district_name: 'Hodan'
@@ -176,8 +176,8 @@ describe('CaafimaadHub Platform API Test Suite', () => {
         type: 'MATERNAL_HEALTH',
         description: 'Antenatal care checkups and tetanus toxoid vaccination.',
         objective: 'Reach 10,000 pregnant and lactating mothers.',
-        startDate: '2026-05-01',
-        endDate: '2026-05-07',
+        startDate: '2026-10-01',
+        endDate: '2026-10-07',
         regionId: 'reg-banadir',
         districtId: 'dist-hodan',
         targetPopulation: 10000,
@@ -204,8 +204,8 @@ describe('CaafimaadHub Platform API Test Suite', () => {
         priority: 'HIGH',
         regionId: 'reg-banadir',
         districtId: 'dist-hodan',
-        startDatetime: '2026-05-02 08:00:00',
-        deadlineDatetime: '2026-05-02 16:00:00',
+        startDatetime: '2026-10-02 08:00:00',
+        deadlineDatetime: '2026-10-02 16:00:00',
         volunteerId: testVolunteerId,
         requiresFieldData: 1,
         fieldFormId: 'form-immu-01'

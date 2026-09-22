@@ -38,6 +38,7 @@ import AuditLogsPage from './pages/admin/AuditLogsPage';
 import SettingsPage from './pages/admin/SettingsPage';
 import SmsDispatchPage from './pages/admin/SmsDispatchPage';
 import AdminProfilePage from './pages/admin/AdminProfilePage';
+import SubscribersAdminPage from './pages/admin/SubscribersAdminPage';
 
 // Shared Pages
 import SchedulePage from './pages/schedule/SchedulePage';
@@ -149,6 +150,7 @@ export default function App() {
         <Route path="audit-logs" element={<AuditLogsPage />} />
         <Route path="profile" element={<AdminProfilePage />} />
         <Route path="settings" element={<AdminProfilePage />} />
+        <Route path="subscribers" element={<SubscribersAdminPage />} />
       </Route>
 
       {/* Volunteer Protected App Layout */}
@@ -165,6 +167,8 @@ export default function App() {
         <Route path="tasks" element={<MyTasksPage />} />
         <Route path="schedule" element={<SchedulePage />} />
         <Route path="field-data" element={<FieldDataFormPage />} />
+        <Route path="outbreak" element={<EmergencyReportPage />} />
+        <Route path="emergencies" element={<EmergencyReportPage />} />
         <Route path="training" element={<MyTrainingPage />} />
         <Route path="training/:courseId" element={<CourseDetailPage />} />
         <Route path="quiz/:courseId" element={<QuizPage />} />

@@ -71,12 +71,17 @@ async function reseedAll() {
 
     const existing = await db.getOne('SELECT id FROM users WHERE LOWER(email) = ?', ['superadmin@caafimaadhub.so']);
     if (existing) {
-      await db.execute('UPDATE users SET password_hash = ?, is_active = 1, is_suspended = 0 WHERE id = ?', [hash, existing.id]);
+      await db.execute("UPDATE users SET password_hash = ?, is_active = 1, is_suspended = 0, role = 'Superadmin' WHERE id = ?", [hash, existing.id]);
+      if (clientType === 'sqlite') {
+        await db.execute('INSERT OR IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)', [existing.id, 'role-super-admin']);
+      } else {
+        await db.execute('INSERT IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)', [existing.id, 'role-super-admin']);
+      }
     } else {
       const userId = 'usr-superadmin-01';
       await db.execute(
-        'INSERT INTO users (id, organization_id, region_id, district_id, full_name, email, password_hash, preferred_language, is_active, is_suspended, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 0, CURRENT_TIMESTAMP)',
-        [userId, 'org-fmoh-001', 'reg-banadir', 'dist-hodan', 'Super Administrator', 'superadmin@caafimaadhub.so', hash, 'so']
+        'INSERT INTO users (id, organization_id, region_id, district_id, full_name, email, password_hash, preferred_language, role, status, is_active, is_suspended, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, CURRENT_TIMESTAMP)',
+        [userId, 'org-fmoh-001', 'reg-banadir', 'dist-hodan', 'Super Administrator', 'superadmin@caafimaadhub.so', hash, 'so', 'Superadmin', 'active']
       );
       if (clientType === 'sqlite') {
         await db.execute('INSERT OR IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)', [userId, 'role-super-admin']);

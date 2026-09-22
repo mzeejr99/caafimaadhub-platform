@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { AlertTriangle, MapPin, CheckCircle2, User, Phone, AlertCircle, Globe, Sun, Moon, ArrowLeft, ShieldAlert, Radio } from 'lucide-react';
 import { Input, Select, Textarea } from '../../components/common/Input';
 import Button from '../../components/common/Button';
@@ -12,30 +13,46 @@ import { validateTextOnly, validatePhone, validateNumberOnly } from '../../utils
 export default function EmergencyReportPage() {
   const { t, language, toggleLanguage } = useLanguage();
   const { theme, toggleTheme, isDark } = useTheme();
+  const { user, isVolunteer } = useAuth();
   const location = useLocation();
   const isInsideApp = location.pathname.startsWith('/community') || location.pathname.startsWith('/admin') || location.pathname.startsWith('/volunteer');
+  const isVolunteerRoute = location.pathname.startsWith('/volunteer');
 
   const [form, setForm] = useState({
-    reporter_name: '',
-    reporter_phone: '',
-    emergency_type: '',
-    severity: '',
+    reporter_name: user?.fullName || user?.full_name || '',
+    reporter_phone: user?.phone || '',
+    emergency_type: 'DISEASE_OUTBREAK',
+    severity: 'HIGH',
     description: '',
-    location_name: '',
+    location_name: user?.district ? `${user.district}, ${user.region || 'Banadir'}` : '',
     suspected_cases: '5',
-    latitude: '2.0469',
-    longitude: '45.3182'
+    latitude: user?.latitude ? String(user.latitude) : '2.0469',
+    longitude: user?.longitude ? String(user.longitude) : '45.3182'
   });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(null);
   const [error, setError] = useState('');
 
+  // Auto-fill when user context is ready
+  useEffect(() => {
+    if (user) {
+      setForm(prev => ({
+        ...prev,
+        reporter_name: prev.reporter_name || user.fullName || user.full_name || '',
+        reporter_phone: prev.reporter_phone || user.phone || '',
+        location_name: prev.location_name || (user.district ? `${user.district}, ${user.region || 'Banadir'}` : '')
+      }));
+    }
+  }, [user]);
+
   const emergencyTypes = [
-    { value: 'DISEASE_OUTBREAK', label: t('emergency_form.type_outbreak') },
+    { value: 'DISEASE_OUTBREAK', label: language === 'so' ? 'Cudur Faafaya / Dillaacay (Acute Outbreak)' : 'Disease Outbreak (Acute Cluster)' },
+    { value: 'CHOLERA_AWD', label: language === 'so' ? 'Shuban-biyood Daran / Daacuun (AWD / Cholera)' : 'Cholera / Acute Watery Diarrhea (AWD)' },
+    { value: 'MEASLES', label: language === 'so' ? 'Jadeeco (Measles Outbreak)' : 'Measles Outbreak' },
+    { value: 'MALNUTRITION_CRISIS', label: language === 'so' ? 'Nafaqo-darro Ba\'an (Acute Severe Malnutrition)' : 'Acute Malnutrition Crisis' },
+    { value: 'UNKNOWN_FEVER', label: language === 'so' ? 'Qandho Daran oo Cudur Cusub ah (Acute Unexplained Fever)' : 'Acute Unexplained Hemorrhagic / Fever' },
     { value: 'FLOOD', label: t('emergency_form.type_flood') },
     { value: 'DROUGHT', label: t('emergency_form.type_drought') },
-    { value: 'CONFLICT_DISPLACEMENT', label: t('emergency_form.type_conflict') },
-    { value: 'MALNUTRITION_CRISIS', label: t('emergency_form.type_malnutrition') },
     { value: 'OTHER', label: t('emergency_form.type_other') }
   ];
 
@@ -101,6 +118,7 @@ export default function EmergencyReportPage() {
     try {
       const payload = {
         ...form,
+        reporter_type: isVolunteer ? 'VOLUNTEER' : 'CITIZEN',
         suspected_cases: form.suspected_cases ? parseInt(form.suspected_cases, 10) : 0,
         latitude: form.latitude ? parseFloat(form.latitude) : null,
         longitude: form.longitude ? parseFloat(form.longitude) : null
@@ -125,16 +143,22 @@ export default function EmergencyReportPage() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                {t('emergency.report_emergency')}
+                {isVolunteerRoute
+                  ? (language === 'so' ? 'Gudbi Digniin Cudur Dillaacay (Outbreak)' : 'Report Disease Outbreak Alert')
+                  : t('emergency.report_emergency')}
               </h1>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900/50">
-                Live Alert
+                {isVolunteerRoute ? 'CHV Outbreak Surveillance' : 'Live Alert'}
               </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-              {language === 'so'
-                ? 'Soo sheeg cudur dillaacay, shuban-biyood, Jadeeco, ama xaalad deg-deg ah si kooxda gurmadka degmada loogu diro'
-                : 'Report disease outbreak, cholera, measles, or emergency health incident to dispatch local health teams'}
+              {isVolunteerRoute
+                ? (language === 'so'
+                    ? 'Warbixin degdeg ah oo toos u gaareysa Maamulka Degmada & Falanqeeyayaasha Caafimaadka (Rapid Response Teams).'
+                    : 'Early warning alert dispatched directly to district operational response coordinators and health analysts.')
+                : (language === 'so'
+                    ? 'Soo sheeg cudur dillaacay, shuban-biyood, Jadeeco, ama xaalad deg-deg ah si kooxda gurmadka degmada loogu diro'
+                    : 'Report disease outbreak, cholera, measles, or emergency health incident to dispatch local health teams')}
             </p>
           </div>
         </div>
@@ -146,6 +170,25 @@ export default function EmergencyReportPage() {
           </div>
         </div>
       </div>
+
+      {/* Verified Volunteer Identifier Card */}
+      {isVolunteer && user && (
+        <div className="p-3.5 rounded-2xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 text-teal-950 dark:text-teal-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <span className="px-2 py-0.5 rounded-md bg-teal-700 text-white font-black text-[10px] tracking-wider uppercase">
+              CHV VERIFIED
+            </span>
+            <span>
+              {language === 'so' ? 'Qofka soo gudbinaya:' : 'Reporting Volunteer:'}{' '}
+              <strong className="text-teal-900 dark:text-white">{user.fullName || user.full_name}</strong>{' '}
+              ({user.district || 'Hodan'}, {user.region || 'Banadir'})
+            </span>
+          </div>
+          <span className="text-[11px] font-mono text-teal-700 dark:text-teal-400 font-semibold">
+            Tel: {user.phone || 'N/A'}
+          </span>
+        </div>
+      )}
 
       {success ? (
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-emerald-200 dark:border-emerald-800/60 p-10 text-center shadow-lg transition-colors w-full">

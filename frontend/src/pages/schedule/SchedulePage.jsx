@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 import {
   CalendarDays, ChevronLeft, ChevronRight, Loader2, MapPin, Users,
   CalendarCheck2, CalendarX2, Megaphone, CircleDot
@@ -65,7 +66,7 @@ export default function SchedulePage() {
   }, [canFilterVolunteers]);
 
   useEffect(() => {
-    fetchSchedules();
+    fetchSchedules(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [volunteerFilter]);
 
@@ -78,8 +79,8 @@ export default function SchedulePage() {
     }
   };
 
-  const fetchSchedules = async () => {
-    setLoading(true);
+  const fetchSchedules = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const res = await api.get('/tasks/schedules', {
         volunteerId: volunteerFilter || undefined
@@ -110,9 +111,11 @@ export default function SchedulePage() {
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
+
+  useAutoRefresh(fetchSchedules, 15000);
 
   const byDay = useMemo(() => {
     const map = {};

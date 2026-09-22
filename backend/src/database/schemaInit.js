@@ -59,9 +59,9 @@ async function initSchemaAndSeeds() {
       sqliteDb.pragma('foreign_keys = ON');
     }
 
-    // Check if seed users exist
-    const hasCoreSeed = sqliteDb.prepare("SELECT id FROM users WHERE LOWER(email) = 'superadmin@example.com'").get();
-    if (!hasCoreSeed) {
+    // Check if any users already exist
+    const hasUsers = sqliteDb.prepare("SELECT id FROM users LIMIT 1").get();
+    if (!hasUsers) {
       console.log('[SchemaInit] Seeding SQLite database with initial operational data...');
       const seedsPath = path.join(__dirname, '../../../database/seeds.sql');
       let seedsSql = fs.readFileSync(seedsPath, 'utf8');
@@ -88,19 +88,58 @@ async function initSchemaAndSeeds() {
       console.log('[SchemaInit] Database tables already present.');
     }
 
-    // Ensure superadmin@caafimaadhub.so exists in SQLite
+    // Ensure superadmin@caafimaadhub.so exists in SQLite with Superadmin role
     try {
       const hash = bcrypt.hashSync('super#123', 10);
       const existing = await db.getOne('SELECT id FROM users WHERE LOWER(email) = ?', ['superadmin@caafimaadhub.so']);
       if (existing) {
-        await db.execute('UPDATE users SET password_hash = ?, is_active = 1, is_suspended = 0 WHERE id = ?', [hash, existing.id]);
+        await db.execute("UPDATE users SET password_hash = ?, is_active = 1, is_suspended = 0, role = 'Superadmin' WHERE id = ?", [hash, existing.id]);
+        await db.execute('INSERT OR IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)', [existing.id, 'role-super-admin']);
       } else {
         const userId = 'usr-superadmin-01';
         await db.execute(
           'INSERT INTO users (id, organization_id, region_id, district_id, full_name, email, password_hash, preferred_language, role, status, is_active, is_suspended, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, CURRENT_TIMESTAMP)',
-          [userId, 'org-fmoh-001', 'reg-banadir', 'dist-hodan', 'Eng. Rooble', 'superadmin@caafimaadhub.so', hash, 'so', 'Superadmin', 'active']
+          [userId, 'org-fmoh-001', 'reg-banadir', 'dist-hodan', 'Super Administrator', 'superadmin@caafimaadhub.so', hash, 'so', 'Superadmin', 'active']
         );
         await db.execute('INSERT OR IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)', [userId, 'role-super-admin']);
+      }
+
+      // Self-healing role sync: Sync users.role with user_roles
+      try {
+        await db.execute("UPDATE users SET role = 'Superadmin' WHERE id IN (SELECT user_id FROM user_roles WHERE role_id = 'role-super-admin')");
+        await db.execute("UPDATE users SET role = 'Admin' WHERE id IN (SELECT user_id FROM user_roles WHERE role_id IN ('role-admin', 'role-operational')) AND role NOT IN ('Superadmin')");
+        await db.execute("UPDATE users SET role = 'DataAnalyst' WHERE id IN (SELECT user_id FROM user_roles WHERE role_id = 'role-analyst') AND role NOT IN ('Superadmin', 'Admin')");
+        await db.execute("UPDATE users SET role = 'Volunteer' WHERE id IN (SELECT user_id FROM user_roles WHERE role_id = 'role-volunteer') AND role NOT IN ('Superadmin', 'Admin', 'DataAnalyst')");
+      } catch (syncErr) {
+        console.warn('[SchemaInit] User roles self-healing sync warning:', syncErr.message);
+      }
+
+      // Self-healing: Clean up orphaned volunteers and dummy demo data
+      try {
+        if (clientType === 'sqlite') {
+          sqliteDb.pragma('foreign_keys = OFF');
+        } else {
+          await db.execute('SET FOREIGN_KEY_CHECKS = 0;').catch(() => {});
+        }
+
+        await db.execute("DELETE FROM volunteer_skills WHERE volunteer_id NOT IN (SELECT v.id FROM volunteers v JOIN users u ON u.id = v.user_id)");
+        await db.execute("DELETE FROM volunteer_languages WHERE volunteer_id NOT IN (SELECT v.id FROM volunteers v JOIN users u ON u.id = v.user_id)");
+        await db.execute("DELETE FROM volunteers WHERE user_id NOT IN (SELECT id FROM users)");
+        
+        // Clean up orphaned records only (do not delete valid operational data)
+        await db.execute("DELETE FROM field_submissions WHERE volunteer_id NOT IN (SELECT v.id FROM volunteers v JOIN users u ON u.id = v.user_id)").catch(() => {});
+        await db.execute("DELETE FROM campaigns WHERE created_by IS NOT NULL AND created_by NOT IN (SELECT id FROM users)").catch(() => {});
+        await db.execute("DELETE FROM campaign_volunteers WHERE campaign_id NOT IN (SELECT id FROM campaigns)").catch(() => {});
+        await db.execute("DELETE FROM tasks WHERE created_by IS NOT NULL AND created_by NOT IN (SELECT id FROM users)").catch(() => {});
+        await db.execute("DELETE FROM task_assignments WHERE task_id NOT IN (SELECT id FROM tasks)").catch(() => {});
+
+        if (clientType === 'sqlite') {
+          sqliteDb.pragma('foreign_keys = ON');
+        } else {
+          await db.execute('SET FOREIGN_KEY_CHECKS = 1;').catch(() => {});
+        }
+      } catch (cleanErr) {
+        console.warn('[SchemaInit] Orphan and dummy cleanup warning:', cleanErr.message);
       }
     } catch (err) {
       console.error('[SchemaInit] Error ensuring superadmin@caafimaadhub.so:', err.message);
@@ -164,14 +203,25 @@ async function initSchemaAndSeeds() {
       const hash = bcrypt.hashSync('super#123', 10);
       const existing = await db.getOne('SELECT id FROM users WHERE LOWER(email) = ?', ['superadmin@caafimaadhub.so']);
       if (existing) {
-        await db.execute('UPDATE users SET password_hash = ?, is_active = 1, is_suspended = 0 WHERE id = ?', [hash, existing.id]);
+        await db.execute("UPDATE users SET password_hash = ?, is_active = 1, is_suspended = 0, role = 'Superadmin' WHERE id = ?", [hash, existing.id]);
+        await db.execute('INSERT IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)', [existing.id, 'role-super-admin']);
       } else {
         const userId = 'usr-superadmin-01';
         await db.execute(
           'INSERT INTO users (id, organization_id, region_id, district_id, full_name, email, password_hash, preferred_language, role, status, is_active, is_suspended, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, CURRENT_TIMESTAMP)',
-          [userId, 'org-fmoh-001', 'reg-banadir', 'dist-hodan', 'Eng. Rooble', 'superadmin@caafimaadhub.so', hash, 'so', 'Superadmin', 'active']
+          [userId, 'org-fmoh-001', 'reg-banadir', 'dist-hodan', 'Super Administrator', 'superadmin@caafimaadhub.so', hash, 'so', 'Superadmin', 'active']
         );
         await db.execute('INSERT IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)', [userId, 'role-super-admin']);
+      }
+
+      // Self-healing role sync in MySQL
+      try {
+        await db.execute("UPDATE users SET role = 'Superadmin' WHERE id IN (SELECT user_id FROM user_roles WHERE role_id = 'role-super-admin')");
+        await db.execute("UPDATE users SET role = 'Admin' WHERE id IN (SELECT user_id FROM user_roles WHERE role_id IN ('role-admin', 'role-operational')) AND role NOT IN ('Superadmin')");
+        await db.execute("UPDATE users SET role = 'DataAnalyst' WHERE id IN (SELECT user_id FROM user_roles WHERE role_id = 'role-analyst') AND role NOT IN ('Superadmin', 'Admin')");
+        await db.execute("UPDATE users SET role = 'Volunteer' WHERE id IN (SELECT user_id FROM user_roles WHERE role_id = 'role-volunteer') AND role NOT IN ('Superadmin', 'Admin', 'DataAnalyst')");
+      } catch (syncErr) {
+        console.warn('[SchemaInit] MySQL User roles self-healing sync warning:', syncErr.message);
       }
     } catch (e) {
       console.error('[SchemaInit] MySQL check error:', e.message);

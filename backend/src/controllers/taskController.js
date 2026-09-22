@@ -102,10 +102,21 @@ class TaskController {
 
   async getVolunteerTaskBoard(req, res, next) {
     try {
-      const volId = req.user.volunteerId;
-      if (!volId) return badRequest(res, 'No volunteer profile associated with this account');
+      const volId = req.user.volunteerId || req.user.id;
       const board = await taskService.getVolunteerTaskBoard(volId);
-      return success(res, board, 'Volunteer task board');
+      return success(res, board || {
+        today: [],
+        upcoming: [],
+        overdue: [],
+        completed: [],
+        pendingReview: [],
+        assigned: [],
+        accepted: [],
+        in_progress: [],
+        rejected: [],
+        all: [],
+        counts: { total: 0, today: 0, upcoming: 0, completed: 0 }
+      }, 'Volunteer task board');
     } catch (err) {
       next(err);
     }

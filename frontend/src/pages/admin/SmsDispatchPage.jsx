@@ -4,7 +4,7 @@ import { useNotification } from '../../contexts/NotificationContext';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   Send, PhoneCall, Radio, CheckCircle2, AlertCircle, Clock,
-  Smartphone, Filter, RefreshCw, ShieldAlert, Sparkles, MessageSquare,
+  Smartphone, Filter, ShieldAlert, Sparkles, MessageSquare,
   Users, Check, X, Shield, Settings2, Zap
 } from 'lucide-react';
 import DataTable from '../../components/common/DataTable';
@@ -251,7 +251,7 @@ export default function SmsDispatchPage() {
       render: (row) => (
         <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
           <Clock className="w-3.5 h-3.5" />
-          {row.created_at ? new Date(row.created_at).toLocaleString() : 'Dhawaan'}
+          {row.created_at ? new Date(row.created_at).toLocaleString() : (language === 'so' ? 'Dhawaan' : 'Recently')}
         </span>
       )
     },
@@ -282,14 +282,6 @@ export default function SmsDispatchPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={fetchSmsData}
-            icon={RefreshCw}
-            disabled={loading}
-          >
-            {language === 'so' ? 'Cusbooneysii' : 'Refresh'}
-          </Button>
           <Button
             onClick={() => { setComposeError(''); setIsComposeOpen(true); }}
             icon={Send}

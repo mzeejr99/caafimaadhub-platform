@@ -27,6 +27,7 @@ const settingsRoutes = require('./routes/settingsRoutes');
 const auditRoutes = require('./routes/auditRoutes');
 const searchRoutes = require('./routes/searchRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
+const subscriberRoutes = require('./routes/subscriberRoutes');
 
 const app = express();
 
@@ -96,6 +97,7 @@ app.use('/api/v1/settings', settingsRoutes);
 app.use('/api/v1/audit-logs', auditRoutes);
 app.use('/api/v1/search', searchRoutes);
 app.use('/api/v1/upload', uploadRoutes);
+app.use('/api/v1/subscribers', subscriberRoutes);
 
 // 404 handler for unknown routes
 app.use((req, res) => {

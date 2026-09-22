@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useNotification } from '../../contexts/NotificationContext';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 import { Truck, Plus, Package, AlertCircle } from 'lucide-react';
 import Card from '../../components/common/Card';
 import Badge from '../../components/common/Badge';
@@ -27,11 +28,11 @@ export default function VolunteerSupplyRequestsPage() {
   });
 
   useEffect(() => {
-    fetchData();
+    fetchData(false);
   }, []);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const [reqRes, itemsRes] = await Promise.all([
         api.get('/inventory/requests/me'),
@@ -50,9 +51,11 @@ export default function VolunteerSupplyRequestsPage() {
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
+
+  useAutoRefresh(fetchData, 12000, !isModalOpen);
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -86,7 +89,7 @@ export default function VolunteerSupplyRequestsPage() {
         quantity: qtyNum,
         reason: form.reason
       });
-      addToast('Codsigaaga qalabka waxaa loo diray bakhaarka caafimaadka degmada', 'success');
+      addToast(language === 'so' ? 'Codsigaaga qalabka waxaa loo diray bakhaarka caafimaadka degmada' : 'Your supply request has been submitted to the health depot.', 'success');
       setIsModalOpen(false);
       fetchData();
       setForm({
@@ -109,7 +112,9 @@ export default function VolunteerSupplyRequestsPage() {
             <Truck className="w-7 h-7 text-teal-700 dark:text-teal-400" /> {t('nav.my_supplies')}
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Codso qalab caafimaad, xirmooyinka ORS, qalabka baaritaanka, ama tallaalka goobaha fogfog
+            {language === 'so'
+              ? 'Codso qalab caafimaad, xirmooyinka ORS, qalabka baaritaanka, ama tallaalka goobaha fogfog'
+              : 'Request medical supplies, ORS kits, diagnostic tools, or vaccines for remote sites'}
           </p>
         </div>
         <Button onClick={() => { setForm({ item_id: items[0]?.id || '', quantity: '', reason: '' }); setModalError(''); setIsModalOpen(true); }} icon={Plus}>
@@ -139,17 +144,17 @@ export default function VolunteerSupplyRequestsPage() {
                     <Badge status={req.status}>{t(`status.${req.status}`) || req.status}</Badge>
                   </div>
                   <p className="text-xs text-slate-600 dark:text-slate-300 mt-2">
-                    Tirada La Codsaday: <strong className="text-slate-900 dark:text-white">{req.quantity_requested}</strong> • {req.reason || 'Bixinta goobta'}
+                    {language === 'so' ? 'Tirada La Codsaday' : 'Qty Requested'}: <strong className="text-slate-900 dark:text-white">{req.quantity_requested}</strong> • {req.reason || (language === 'so' ? 'Bixinta goobta' : 'Field delivery')}
                   </p>
                 </div>
 
                 <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
                   <span className="text-[11px] text-slate-400 dark:text-slate-500">
-                    La soo gudbiyay: {req.created_at ? new Date(req.created_at).toLocaleDateString() : 'Dhawaan'}
+                    {language === 'so' ? 'La soo gudbiyay' : 'Submitted'}: {req.created_at ? new Date(req.created_at).toLocaleDateString() : (language === 'so' ? 'Dhawaan' : 'Recently')}
                   </span>
                   {req.status === 'ISSUED' && (
                     <span className="text-[11px] text-emerald-700 dark:text-emerald-300 font-bold bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
-                      Diyaar u ah Qaadasho (Depot)
+                      {language === 'so' ? 'Diyaar u ah Qaadasho (Depot)' : 'Ready for Pickup (Depot)'}
                     </span>
                   )}
                 </div>
@@ -180,7 +185,7 @@ export default function VolunteerSupplyRequestsPage() {
             name="item_id"
             value={form.item_id}
             onChange={(e) => setForm({ ...form, item_id: e.target.value })}
-            options={items.map((i) => ({ value: i.id, label: `${i.item_code} - ${i.name} (Kaydka: ${i.quantity_on_hand})` }))}
+            options={items.map((i) => ({ value: i.id, label: `${i.item_code} - ${i.name} (${language === 'so' ? 'Kaydka' : 'Stock'}: ${i.quantity_on_hand})` }))}
             required
           />
 

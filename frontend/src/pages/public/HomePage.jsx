@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import useAutoRefresh from '../../hooks/useAutoRefresh';
 import api from '../../services/api';
 import {
   Heart, Users, Megaphone, ClipboardList, Shield, MapPin,
@@ -12,7 +13,7 @@ import {
   TrendingUp, Sparkles, Send, Check, Phone, Mail, Award,
   Smartphone, MessageSquare, Layers, Lock, ShieldAlert,
   ChevronDown, Menu, X, Package, Clock, HelpCircle, Sun, Moon,
-  UserPlus, Award as CertificateIcon
+  UserPlus, Award as CertificateIcon, Loader2, Home, LogOut
 } from 'lucide-react';
 
 // Initials generator helper with consistent color palettes
@@ -43,8 +44,24 @@ export default function HomePage() {
   const [activeSection, setActiveSection] = useState('hero-section');
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
+  const [subscribing, setSubscribing] = useState(false);
+  const [subscribeError, setSubscribeError] = useState('');
   const [contactForm, setContactForm] = useState({ name: '', email: '', phone: '', message: '' });
   const [contactSubmitted, setContactSubmitted] = useState(false);
+  const [contactSubmitting, setContactSubmitting] = useState(false);
+  const [contactError, setContactError] = useState('');
+
+  // Lock body scroll when mobile menu drawer is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
 
   // Auto-redirect if running in installed PWA standalone mode and already logged in (Stay Logged In)
   useEffect(() => {
@@ -105,129 +122,48 @@ export default function HomePage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Database-driven state with seed defaults
+  // Database-driven state (100% genuine database data, no fake fallbacks)
   const [liveData, setLiveData] = useState({
-    activeCampaigns: 4,
-    totalCampaigns: 9,
-    totalVolunteers: 10,
-    totalFacilities: 10,
-    totalFieldSubmissions: 5,
-    totalCertificatesEarned: 2,
-    totalRegions: 18,
-    totalPeopleReached: 380000,
-    totalServicesDelivered: 4895,
-    totalSuppliesStock: 52000,
-    growthPercentage: 20.5,
-    topVolunteers: [
-      { id: 'vol-rec-01', full_name: 'Aamina Xasan Barre', region_name: 'Banaadir', district_name: 'Hodan', status: 'APPROVED', avatar_url: null, submissions_count: 3 },
-      { id: 'vol-rec-02', full_name: 'Cabdullaahi Yusuf Cali', region_name: 'Woqooyi Galbeed', district_name: 'Hargeysa', status: 'APPROVED', avatar_url: null, submissions_count: 2 },
-      { id: 'vol-rec-03', full_name: 'Fadumo Cali Nuur', region_name: 'Jubaland (Lower Juba)', district_name: 'Kismaayo', status: 'APPROVED', avatar_url: null, submissions_count: 2 },
-      { id: 'vol-rec-04', full_name: 'Maxamed Ibraahin Jimcaale', region_name: 'Galmudug (Galgaduud)', district_name: 'Cadaado', status: 'APPROVED', avatar_url: null, submissions_count: 1 },
-      { id: 'vol-rec-05', full_name: 'Saacid Maxamuud Faarax', region_name: 'Puntland (Nugaal)', district_name: 'Garoowe', status: 'APPROVED', avatar_url: null, submissions_count: 1 }
-    ],
-    activeCampaignsList: [
-      { id: 'camp-polio-2026-01', name: 'Tallaalka Polio Qaran (National Polio Immunization Campaign)', type: 'POLIO', status: 'ACTIVE', start_date: '2026-05-01', end_date: '2026-05-31', target_population: 150000, region_name: 'Banaadir' },
-      { id: 'camp-nutr-2026-02', name: 'Wacyigelinta & Baaritaanka Nafaqada (Integrated Nutrition & MUAC Outreach)', type: 'NUTRITION', status: 'ACTIVE', start_date: '2026-04-20', end_date: '2026-05-20', target_population: 45000, region_name: 'Woqooyi Galbeed' },
-      { id: 'camp-malaria-2026-03', name: 'Ka Hortagga Duumada & Qaybinta Mara Kaneecada (Malaria Prevention & LLIN Distribution)', type: 'MALARIA', status: 'ACTIVE', start_date: '2026-05-10', end_date: '2026-05-30', target_population: 85000, region_name: 'Jubaland (Lower Juba)' },
-      { id: 'camp-nutr-2026-03', name: 'Bari Regional Acute Malnutrition Screening & Referral', type: 'NUTRITION', status: 'ACTIVE', start_date: '2026-02-15', end_date: '2026-03-30', target_population: 45000, region_name: 'Bari' },
-      { id: '26011f12-935c-4f67-a2f2-c2ef09b82a33', name: 'Banadir Maternal & Child Health Week', type: 'MATERNAL_HEALTH', status: 'PLANNED', start_date: '2026-05-01', end_date: '2026-05-07', target_population: 10000, region_name: 'Banaadir' }
-    ],
-    regionalCoverage: [
-      { id: 'reg-banadir', name: 'Banaadir', volunteers_count: 5, campaigns_count: 3 },
-      { id: 'reg-woqooyi', name: 'Woqooyi Galbeed', volunteers_count: 1, campaigns_count: 2 },
-      { id: 'reg-lower-juba', name: 'Jubaland (Lower Juba)', volunteers_count: 1, campaigns_count: 1 },
-      { id: 'reg-nugaal', name: 'Puntland (Nugaal)', volunteers_count: 1, campaigns_count: 1 },
-      { id: 'reg-galguduud', name: 'Galmudug (Galgaduud)', volunteers_count: 1, campaigns_count: 1 },
-      { id: 'reg-hiran', name: 'Hirshabelle (Hiiraan)', volunteers_count: 1, campaigns_count: 1 }
-    ],
-    recentReports: [
-      { id: 'sub-01', volunteer_name: 'Aamina Xasan Barre', campaign_name: 'Tallaalka Polio Qaran', region_name: 'Banaadir', district_name: 'Hodan', submission_datetime: '2026-05-02 11:00:00', sync_status: 'SYNCED', review_status: 'APPROVED' },
-      { id: 'sub-02', volunteer_name: 'Cabdullaahi Yusuf Cali', campaign_name: 'Wacyigelinta & Baaritaanka Nafaqada', region_name: 'Woqooyi Galbeed', district_name: 'Hargeysa', submission_datetime: '2026-05-02 13:30:00', sync_status: 'SYNCED', review_status: 'APPROVED' },
-      { id: 'sub-03', volunteer_name: 'Fadumo Cali Nuur', campaign_name: 'Ka Hortagga Duumada & Mara Kaneecada', region_name: 'Jubaland', district_name: 'Kismaayo', submission_datetime: '2026-05-10 15:20:00', sync_status: 'SYNCED', review_status: 'APPROVED' },
-      { id: 'sub-04', volunteer_name: 'Maxamed Ibraahin Jimcaale', campaign_name: 'Caafimaadka Hooyada & Dhallaanka', region_name: 'Galmudug', district_name: 'Cadaado', submission_datetime: '2026-05-12 14:50:00', sync_status: 'SYNCED', review_status: 'APPROVED' }
-    ],
-    weeklyActivity: [
-      { day: 'Mon', daySo: 'Isniin', reports: 124, services: 340 },
-      { day: 'Tue', daySo: 'Talaado', reports: 186, services: 410 },
-      { day: 'Wed', daySo: 'Arbaco', reports: 142, services: 290 },
-      { day: 'Thu', daySo: 'Khamiis', reports: 230, services: 510 },
-      { day: 'Fri', daySo: 'Jimco', reports: 98, services: 210 },
-      { day: 'Sat', daySo: 'Sabti', reports: 260, services: 580 },
-      { day: 'Sun', daySo: 'Axad', reports: 195, services: 440 }
-    ],
-    services: [
-      {
-        id: 'srv-vaccines',
-        category: 'VACCINES',
-        nameEn: 'Immunization & Vaccine Logistics',
-        nameSo: 'Tallaalka & Qaybinta Tallaallada',
-        descEn: 'Polio (bOPV/IPV), Measles, BCG, and Pentavalent cold chain delivery across districts.',
-        descSo: 'Gaarsiinta tallaallada Polio, Jadeecada, BCG iyo Pentavalent iyadoo la ilaalinayo heerkulka qabowga.'
-      },
-      {
-        id: 'srv-nutrition',
-        category: 'NUTRITION_SUPPLIES',
-        nameEn: 'Nutrition & Malnutrition Screening',
-        nameSo: 'Nafaqada & Baaritaanka Nafaqo-darrada',
-        descEn: 'MUAC tape screenings, Ready-to-Use Therapeutic Food (Plumpy\'Nut RUTF) and therapeutic milk.',
-        descSo: 'Baaritaanka cabbirka MUAC, qaybinta RUTF (Plumpy\'Nut) iyo caanaha daweynta F-75/F-100.'
-      },
-      {
-        id: 'srv-maternal',
-        category: 'MATERNAL_SUPPLIES',
-        nameEn: 'Maternal & Child Health Care',
-        nameSo: 'Daryeelka Hooyada & Dhallaanka',
-        descEn: 'Antenatal care counseling, clean delivery kits, Chlorhexidine cord care, and maternal health referrals.',
-        descSo: 'Talo-bixinta xilliga uurka, xirmooyinka dhalmada nadiifka ah, iyo daryeelka xuddunta dhallaanka.'
-      },
-      {
-        id: 'srv-malaria',
-        category: 'DIAGNOSTIC_KITS',
-        nameEn: 'Disease Surveillance & Rapid Response',
-        nameSo: 'Dabagalka Cudurrada & Ka-jawaabista Degdegga',
-        descEn: 'Malaria RDT rapid diagnostic tests, Coartem treatment, LLIN bed net distribution, and AWD surveillance.',
-        descSo: 'Baaritaannada degdegga ah ee Malaria RDT, daaweynta Coartem, mara kaneecada, iyo dabagalka shubanka.'
-      },
-      {
-        id: 'srv-medicines',
-        category: 'MEDICINES',
-        nameEn: 'Essential Medicines & Field Supplies',
-        nameSo: 'Dawooyinka Aasaasiga ah & Sahayda Goobta',
-        descEn: 'WHO ORS packets, Zinc tablets, Amoxicillin, Paracetamol, Vitamin A supplementation, and deworming.',
-        descSo: 'Biyo-macaanta ORS, kiniinka Zinc, Amoxicillin, Paracetamol, Vitamin A, iyo dawooyinka gooryaanka.'
-      },
-      {
-        id: 'srv-training',
-        category: 'TRAINING',
-        nameEn: 'CHV Training & Certified Field Operations',
-        nameSo: 'Tababarka & Awood-siinta Volunteers-ka',
-        descEn: 'Comprehensive multimedia training modules, quizzes, and QR-verifiable official certifications.',
-        descSo: 'Casharro tababar oo maqal iyo muuqaal ah, imtixaanno, iyo shahaadooyin rasmi ah oo QR leh.'
-      }
-    ]
+    activeCampaigns: 0,
+    totalCampaigns: 0,
+    totalVolunteers: 0,
+    totalFacilities: 0,
+    totalFieldSubmissions: 0,
+    totalCertificatesEarned: 0,
+    totalRegions: 0,
+    totalPeopleReached: 0,
+    totalServicesDelivered: 0,
+    totalSuppliesStock: 0,
+    growthPercentage: 0,
+    topVolunteers: [],
+    activeCampaignsList: [],
+    regionalCoverage: [],
+    recentReports: [],
+    weeklyActivity: [],
+    services: []
   });
 
   // Fetch real database records from public analytics endpoint
+  const fetchPublicStats = async (isSilent = false) => {
+    try {
+      const res = await api.get('/analytics/public');
+      if (res && res.success && res.data) {
+        setLiveData(res.data);
+      }
+    } catch (err) {
+      if (!isSilent) {
+        console.warn('Could not fetch live public stats from server:', err);
+      }
+    }
+  };
+
+  // Initial load
   useEffect(() => {
-    api.get('/analytics/public')
-      .then((res) => {
-        if (res.success && res.data) {
-          setLiveData((prev) => ({
-            ...prev,
-            ...res.data,
-            topVolunteers: res.data.topVolunteers && res.data.topVolunteers.length > 0 ? res.data.topVolunteers : prev.topVolunteers,
-            activeCampaignsList: res.data.activeCampaignsList && res.data.activeCampaignsList.length > 0 ? res.data.activeCampaignsList : prev.activeCampaignsList,
-            regionalCoverage: res.data.regionalCoverage && res.data.regionalCoverage.length > 0 ? res.data.regionalCoverage : prev.regionalCoverage,
-            recentReports: res.data.recentReports && res.data.recentReports.length > 0 ? res.data.recentReports : prev.recentReports,
-            weeklyActivity: res.data.weeklyActivity && res.data.weeklyActivity.length > 0 ? res.data.weeklyActivity : prev.weeklyActivity,
-            services: res.data.services && res.data.services.length > 0 ? res.data.services : prev.services
-          }));
-        }
-      })
-      .catch((err) => {
-        console.warn('Could not fetch live public stats from server, using local database cache:', err);
-      });
+    fetchPublicStats(false);
   }, []);
+
+  // Continuous silent background auto-refresh every 8 seconds
+  useAutoRefresh(fetchPublicStats, 8000, true);
 
   const isSomali = language === 'so';
 
@@ -408,14 +344,22 @@ export default function HomePage() {
     }
   };
 
-  const handleSubscribe = (e) => {
+  const handleSubscribe = async (e) => {
     e.preventDefault();
-    if (newsletterEmail && newsletterEmail.includes('@')) {
+    if (!newsletterEmail || !newsletterEmail.includes('@')) return;
+    setSubscribing(true);
+    setSubscribeError('');
+    try {
+      await api.post('/subscribers', { email: newsletterEmail });
       setSubscribed(true);
       setTimeout(() => {
         setSubscribed(false);
         setNewsletterEmail('');
-      }, 4000);
+      }, 5000);
+    } catch (err) {
+      setSubscribeError(err.message || (isSomali ? 'Khalad ayaa dhacay. Isku day mar kale.' : 'An error occurred. Please try again.'));
+    } finally {
+      setSubscribing(false);
     }
   };
 
@@ -434,297 +378,386 @@ export default function HomePage() {
     }
   };
 
-  const handleContactSubmit = (e) => {
+  const handleContactSubmit = async (e) => {
     e.preventDefault();
-    if (contactForm.name && contactForm.email) {
+    if (!contactForm.name || !contactForm.email) return;
+    setContactSubmitting(true);
+    setContactError('');
+    try {
+      await api.post('/feedback/submit', {
+        category: 'CONTACT',
+        reporterName: contactForm.name,
+        reporterEmail: contactForm.email,
+        reporterPhone: contactForm.phone,
+        description: contactForm.message || `Contact inquiry from ${contactForm.name} (${contactForm.email})`
+      });
       setContactSubmitted(true);
       setTimeout(() => {
         setContactSubmitted(false);
         setContactForm({ name: '', email: '', phone: '', message: '' });
-      }, 5000);
+      }, 6000);
+    } catch (err) {
+      setContactError(err.message || (isSomali ? 'Farriintu kuma guulaysanin. Isku day mar kale.' : 'Message could not be sent. Please try again.'));
+    } finally {
+      setContactSubmitting(false);
     }
   };
 
+  const mobileNavItems = [
+    { id: 'hero-section', to: '#hero-section', icon: Home, label: txt.nav.home },
+    { id: 'services-section', to: '#services-section', icon: Stethoscope, label: txt.nav.services },
+    { id: 'how-it-works-section', to: '#how-it-works-section', icon: Activity, label: isSomali ? 'Sidee U Shaqeeyaa' : 'How It Works' },
+    { id: 'live-grid-section', to: '#live-grid-section', icon: Megaphone, label: isSomali ? 'Ololaha & Wararka' : 'Live Activities' },
+    { id: 'about-section', to: '#about-section', icon: Building2, label: txt.nav.about },
+    { id: 'verify-certificate', to: '/verify-certificate', icon: CertificateIcon, label: txt.nav.verify, isRoute: true },
+    { id: 'register', to: '/register', icon: UserPlus, label: txt.nav.joinVolunteer, isRoute: true },
+    { id: 'contact-section', to: '#contact-section', icon: Phone, label: txt.nav.contact },
+  ];
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased selection:bg-emerald-600 selection:text-white transition-colors duration-200">
+    <div className="relative min-h-screen bg-[#08111D] dark:bg-[#03070E] overflow-x-hidden font-sans selection:bg-emerald-600 selection:text-white">
 
       {/* ─────────────────────────────────────────────────────────────────────────
-          1. TOP NAVIGATION BAR (Fixed, Always Visible, Glassmorphism)
+          MOBILE SIDEBAR DRAWER (JUST / 3D App Drawer Style)
       ───────────────────────────────────────────────────────────────────────── */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80 shadow-xs transition-colors w-full">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-2 sm:gap-4">
-
-          {/* Brand Logo & Tagline */}
-          <Link to="/" onClick={(e) => scrollToSection(e, 'hero-section')} className="flex items-center gap-2 sm:gap-3 group shrink-0 min-w-0">
-            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-800 flex items-center justify-center text-white shadow-md shadow-emerald-700/20 group-hover:scale-105 transition-transform shrink-0">
-              <Shield className="w-5 h-5 sm:w-6 sm:h-6 fill-white/20 stroke-white stroke-2" />
+      <aside
+        className={`xl:hidden fixed inset-y-0 left-0 w-[78vw] max-w-[310px] z-20 flex flex-col justify-between p-5 pb-8 overflow-y-auto text-white transition-opacity duration-300 ${
+          mobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+      >
+        {/* Brand Header */}
+        <div>
+          <div className="flex items-center gap-3 pt-2 pb-4">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-white shadow-lg shadow-emerald-950/50 border border-white/20 shrink-0">
+              <Shield className="w-6 h-6 fill-white/20 stroke-white stroke-2" />
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-lg sm:text-xl font-black tracking-tight text-slate-950 dark:text-white flex items-center gap-1">
-                Caafimaad<span className="text-emerald-700 dark:text-emerald-400">Hub</span>
+              <span className="text-xl font-black tracking-tight text-white flex items-center gap-1">
+                Caafimaad<span className="text-emerald-400">Hub</span>
               </span>
-              <span className="hidden md:block text-[11px] font-semibold text-slate-500 dark:text-slate-400 tracking-tight -mt-0.5 truncate max-w-[280px]">
-                {txt.brandTagline}
+              <span className="text-[11px] font-semibold text-slate-400 tracking-tight truncate">
+                {isSomali ? 'Bulshada & Caafimaadka' : 'CHV Health Platform'}
               </span>
             </div>
-          </Link>
+          </div>
 
-          {/* Clean Public Navigation Links with Dynamic Active Pill Highlights */}
-          <nav className="hidden xl:flex items-center gap-1.5 2xl:gap-2">
-            <a
-              href="#hero-section"
-              onClick={(e) => scrollToSection(e, 'hero-section')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${activeSection === 'hero-section'
-                ? 'text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/70 shadow-xs border border-emerald-200/60 dark:border-emerald-800/60'
-                : 'text-slate-700 dark:text-slate-200 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 border border-transparent'
-                }`}
-            >
-              {txt.nav.home}
-            </a>
-            <a
-              href="#services-section"
-              onClick={(e) => scrollToSection(e, 'services-section')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${activeSection === 'services-section'
-                ? 'text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/70 shadow-xs border border-emerald-200/60 dark:border-emerald-800/60'
-                : 'text-slate-700 dark:text-slate-200 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 border border-transparent'
-                }`}
-            >
-              {txt.nav.services}
-            </a>
-            <a
-              href="#about-section"
-              onClick={(e) => scrollToSection(e, 'about-section')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${activeSection === 'about-section'
-                ? 'text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/70 shadow-xs border border-emerald-200/60 dark:border-emerald-800/60'
-                : 'text-slate-700 dark:text-slate-200 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 border border-transparent'
-                }`}
-            >
-              {txt.nav.about}
-            </a>
-            <a
-              href="#contact-section"
-              onClick={(e) => scrollToSection(e, 'contact-section')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${activeSection === 'contact-section'
-                ? 'text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/70 shadow-xs border border-emerald-200/60 dark:border-emerald-800/60'
-                : 'text-slate-700 dark:text-slate-200 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 border border-transparent'
-                }`}
-            >
-              {txt.nav.contact}
-            </a>
-            <Link
-              to="/verify-certificate"
-              className="ml-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors shadow-2xs"
-            >
-              <CertificateIcon className="w-3.5 h-3.5" />
-              <span>{txt.nav.verify}</span>
-            </Link>
+          <div className="h-px bg-gradient-to-r from-white/15 via-white/10 to-transparent my-2" />
+
+          {/* Menu Items with Rounded Icon Badges */}
+          <nav className="space-y-1.5 mt-4">
+            {mobileNavItems.map((item) => {
+              const IconComponent = item.icon;
+              const isActive = activeSection === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={(e) => {
+                    if (item.isRoute) {
+                      setMobileMenuOpen(false);
+                      navigate(item.to);
+                    } else {
+                      scrollToSection(e, item.id);
+                    }
+                  }}
+                  className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-2xl transition-all text-left ${
+                    isActive
+                      ? 'bg-emerald-500/20 text-white font-bold'
+                      : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
+                  }`}
+                >
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+                      isActive
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/40 ring-2 ring-emerald-400/40'
+                        : 'bg-white/[0.08] text-slate-300 border border-white/10'
+                    }`}
+                  >
+                    <IconComponent className="w-5 h-5" />
+                  </div>
+                  <span className="text-sm font-semibold tracking-tight">{item.label}</span>
+                </button>
+              );
+            })}
           </nav>
+        </div>
 
-          {/* Right Action Controls (Uniform Heights & Aligned Rhythm) */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-
-            {/* Theme Toggle (Moon / Sun) */}
+        {/* Bottom Drawer Actions */}
+        <div className="space-y-3 pt-4 border-t border-white/10">
+          {/* Language & Theme Controls */}
+          <div className="flex items-center justify-between gap-2 bg-white/[0.05] border border-white/10 rounded-2xl p-1.5">
+            <button
+              type="button"
+              onClick={() => setLanguage(isSomali ? 'en' : 'so')}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-white/[0.08] hover:bg-white/15 text-xs font-bold text-white transition-colors"
+            >
+              <Globe className="w-3.5 h-3.5 text-emerald-400" />
+              <span>{isSomali ? 'Af-Soomaali' : 'English'}</span>
+            </button>
             <button
               type="button"
               onClick={toggleTheme}
-              className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/90 dark:border-slate-700 transition-colors cursor-pointer"
-              title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/[0.08] hover:bg-white/15 text-slate-200 transition-colors"
+              title={isDark ? 'Light Mode' : 'Dark Mode'}
             >
-              {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
+              {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-200" />}
             </button>
+          </div>
 
-            {/* Language Switcher Dropdown */}
-            <div className="relative">
+          {/* Primary CTA / Dashboard */}
+          {isAuthenticated && authUser ? (
+            <div className="space-y-2">
+              <Link
+                to={
+                  String(authUser.role || '').toUpperCase().includes('VOLUNTEER')
+                    ? '/volunteer/dashboard'
+                    : String(authUser.role || '').toUpperCase().includes('PUBLIC')
+                    ? '/community/portal'
+                    : '/admin/dashboard'
+                }
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-950/40"
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>{isSomali ? 'Tag Dashboard-ka' : 'Go to Dashboard'}</span>
+              </Link>
               <button
                 type="button"
-                onClick={() => setLangDropdownOpen(!langDropdownOpen)}
-                className="h-9 px-2 sm:h-10 sm:px-3 flex items-center gap-1 sm:gap-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/90 dark:border-slate-700 transition-colors cursor-pointer"
+                onClick={() => { logout(); setMobileMenuOpen(false); }}
+                className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-semibold text-rose-300 hover:text-rose-200 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20"
               >
-                <Globe className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
-                <span className="font-black">{isSomali ? 'SO' : 'EN'}</span>
-                <ChevronDown className="w-3 h-3 text-slate-400" />
+                <LogOut className="w-3.5 h-3.5" />
+                <span>{isSomali ? 'Ka bax akoonka' : 'Sign Out'}</span>
               </button>
-
-              {langDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-                  <button
-                    type="button"
-                    onClick={() => { setLanguage('so'); setLangDropdownOpen(false); }}
-                    className={`w-full text-left px-3.5 py-2.5 text-xs font-semibold flex items-center justify-between transition-colors ${isSomali ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 font-bold' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
-                      }`}
-                  >
-                    <span> Af-Soomaali (SO)</span>
-                    {isSomali && <Check className="w-3.5 h-3.5 text-emerald-700" />}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setLanguage('en'); setLangDropdownOpen(false); }}
-                    className={`w-full text-left px-3.5 py-2.5 text-xs font-semibold flex items-center justify-between transition-colors ${!isSomali ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 font-bold' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
-                      }`}
-                  >
-                    <span> English (EN)</span>
-                    {!isSomali && <Check className="w-3.5 h-3.5 text-emerald-700" />}
-                  </button>
-                </div>
-              )}
             </div>
+          ) : (
+            <Link
+              to="/login"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 shadow-lg shadow-emerald-950/40"
+            >
+              <Users className="w-4 h-4" />
+              <span>{txt.nav.login}</span>
+            </Link>
+          )}
+        </div>
+      </aside>
 
-            {/* Authenticated Dashboard Button or Login/Register */}
-            {isAuthenticated && authUser ? (
-              <div className="flex items-center gap-2">
-                <Link
-                  to={
-                    String(authUser.role || '').toUpperCase().includes('VOLUNTEER')
-                      ? '/volunteer/dashboard'
-                      : String(authUser.role || '').toUpperCase().includes('PUBLIC')
-                      ? '/community/portal'
-                      : '/admin/dashboard'
-                  }
-                  className="inline-flex h-9 sm:h-10 px-3.5 sm:px-5 items-center gap-1.5 sm:gap-2 bg-emerald-700 hover:bg-emerald-800 active:scale-[0.98] text-white text-xs font-bold whitespace-nowrap rounded-xl shadow-md shadow-emerald-950/20 hover:shadow-lg transition-all"
-                >
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>{isSomali ? 'Tag Dashboard-ka' : 'Go to Dashboard'}</span>
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => logout()}
-                  title={isSomali ? 'Ka bax akoonka' : 'Sign out'}
-                  className="hidden sm:inline-flex h-9 sm:h-10 px-3 items-center gap-1 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50/50 dark:hover:bg-rose-950/30 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-800 transition-colors"
-                >
-                  <span>{isSomali ? 'Ka bax' : 'Logout'}</span>
-                </button>
-              </div>
-            ) : (
-              <>
-                {/* Join Volunteer CTA (Tablet & Desktop) */}
-                <Link
-                  to="/register"
-                  className="hidden lg:inline-flex h-10 items-center gap-1.5 px-4 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 text-xs font-bold whitespace-nowrap rounded-xl border border-emerald-300/70 dark:border-emerald-800 transition-colors shadow-2xs"
-                >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  <span>{txt.nav.joinVolunteer}</span>
-                </Link>
+      {/* ─────────────────────────────────────────────────────────────────────────
+          DECORATIVE STACKED CARD (Depth Illusion when drawer open)
+      ───────────────────────────────────────────────────────────────────────── */}
+      {mobileMenuOpen && (
+        <div className="xl:hidden fixed inset-y-8 left-[72vw] w-12 rounded-[28px] bg-slate-800/40 border border-white/10 scale-[0.80] z-20 blur-[0.5px] pointer-events-none transition-all duration-300" />
+      )}
 
-                {/* Login Button (Desktop & Tablet) */}
-                <Link
-                  to="/login"
-                  className="hidden sm:inline-flex h-9 sm:h-10 px-3.5 sm:px-5 items-center gap-1.5 sm:gap-2 bg-[#0a382c] hover:bg-[#072a21] active:scale-[0.98] text-white text-xs font-bold whitespace-nowrap rounded-xl shadow-md shadow-emerald-950/20 hover:shadow-lg transition-all"
-                >
-                  <Users className="w-3.5 h-3.5" />
-                  <span>{txt.nav.login}</span>
-                </Link>
-              </>
-            )}
-
-            {/* Mobile Hamburger Menu */}
+      {/* ─────────────────────────────────────────────────────────────────────────
+          SCALED MAIN APPLICATION CONTENT (3D Card Stack Effect)
+      ───────────────────────────────────────────────────────────────────────── */}
+      <div
+        className={`min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased transition-all duration-300 ease-out origin-top-left relative z-30 ${
+          mobileMenuOpen
+            ? 'translate-x-[78vw] sm:translate-x-[68vw] scale-[0.84] rounded-[32px] overflow-hidden shadow-[-25px_25px_60px_rgba(0,0,0,0.8)] border border-white/20 select-none max-h-[100dvh]'
+            : ''
+        }`}
+      >
+        {/* Floating Close Overlay on Scaled Card */}
+        {mobileMenuOpen && (
+          <div
+            onClick={() => setMobileMenuOpen(false)}
+            className="xl:hidden absolute inset-0 z-50 bg-slate-950/25 backdrop-blur-[1px] cursor-pointer"
+          >
             <button
               type="button"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="xl:hidden w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 shrink-0"
-              aria-label="Toggle Menu"
+              onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(false); }}
+              className="absolute top-4 left-4 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-white/20 flex items-center justify-center shadow-xl active:scale-95 transition-transform"
+              aria-label="Close Menu"
             >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              <X className="w-5 h-5" />
             </button>
-
-          </div>
-        </div>
-
-        {/* Mobile Navigation Drawer */}
-        {mobileMenuOpen && (
-          <div className="xl:hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 px-4 py-4 space-y-2 animate-in fade-in slide-in-from-top-3">
-            {isAuthenticated && authUser ? (
-              <div className="space-y-2 mb-3">
-                <Link
-                  to={
-                    String(authUser.role || '').toUpperCase().includes('VOLUNTEER')
-                      ? '/volunteer/dashboard'
-                      : String(authUser.role || '').toUpperCase().includes('PUBLIC')
-                      ? '/community/portal'
-                      : '/admin/dashboard'
-                  }
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center justify-center gap-2 px-3.5 py-3 rounded-xl text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 shadow-md shadow-emerald-950/20"
-                >
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>{isSomali ? 'Tag Dashboard-ka' : 'Go to Dashboard'}</span>
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => { logout(); setMobileMenuOpen(false); }}
-                  className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50/80 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50"
-                >
-                  <span>{isSomali ? 'Ka bax akoonka (Logout)' : 'Sign Out'}</span>
-                </button>
-              </div>
-            ) : (
-              <Link
-                to="/login"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex sm:hidden items-center justify-center gap-2 px-3.5 py-3 rounded-xl text-xs font-bold text-white bg-[#0a382c] hover:bg-[#072a21] shadow-md shadow-emerald-950/20 mb-3"
-              >
-                <Users className="w-4 h-4" />
-                <span>{txt.nav.login}</span>
-              </Link>
-            )}
-            <a
-              href="#hero-section"
-              onClick={(e) => scrollToSection(e, 'hero-section')}
-              className={`block px-3.5 py-2.5 rounded-xl text-xs font-bold cursor-pointer transition-all ${activeSection === 'hero-section'
-                ? 'text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60'
-                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-                }`}
-            >
-              {txt.nav.home}
-            </a>
-            <a
-              href="#services-section"
-              onClick={(e) => scrollToSection(e, 'services-section')}
-              className={`block px-3.5 py-2.5 rounded-xl text-xs font-bold cursor-pointer transition-all ${activeSection === 'services-section'
-                ? 'text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60'
-                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-                }`}
-            >
-              {txt.nav.services}
-            </a>
-            <a
-              href="#about-section"
-              onClick={(e) => scrollToSection(e, 'about-section')}
-              className={`block px-3.5 py-2.5 rounded-xl text-xs font-bold cursor-pointer transition-all ${activeSection === 'about-section'
-                ? 'text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60'
-                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-                }`}
-            >
-              {txt.nav.about}
-            </a>
-            <a
-              href="#contact-section"
-              onClick={(e) => scrollToSection(e, 'contact-section')}
-              className={`block px-3.5 py-2.5 rounded-xl text-xs font-bold cursor-pointer transition-all ${activeSection === 'contact-section'
-                ? 'text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60'
-                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-                }`}
-            >
-              {txt.nav.contact}
-            </a>
-            <Link
-              to="/verify-certificate"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20"
-            >
-              <CertificateIcon className="w-3.5 h-3.5" />
-              <span>{txt.nav.verify}</span>
-            </Link>
-            <Link
-              to="/register"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex md:hidden items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100/60 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>{txt.nav.joinVolunteer}</span>
-            </Link>
           </div>
         )}
-      </header>
+
+        {/* ─────────────────────────────────────────────────────────────────────────
+            1. TOP NAVIGATION BAR (Fixed, Always Visible, Glassmorphism)
+        ───────────────────────────────────────────────────────────────────────── */}
+        <header className="fixed top-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80 shadow-xs transition-colors w-full">
+          <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-2 sm:gap-4">
+
+            {/* Brand Logo & Tagline */}
+            <Link to="/" onClick={(e) => scrollToSection(e, 'hero-section')} className="flex items-center gap-2 sm:gap-3 group shrink-0 min-w-0">
+              <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-800 flex items-center justify-center text-white shadow-md shadow-emerald-700/20 group-hover:scale-105 transition-transform shrink-0">
+                <Shield className="w-5 h-5 sm:w-6 sm:h-6 fill-white/20 stroke-white stroke-2" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-lg sm:text-xl font-black tracking-tight text-slate-950 dark:text-white flex items-center gap-1">
+                  Caafimaad<span className="text-emerald-700 dark:text-emerald-400">Hub</span>
+                </span>
+                <span className="hidden md:block text-[11px] font-semibold text-slate-500 dark:text-slate-400 tracking-tight -mt-0.5 truncate max-w-[280px]">
+                  {txt.brandTagline}
+                </span>
+              </div>
+            </Link>
+
+            {/* Clean Public Navigation Links with Dynamic Active Pill Highlights */}
+            <nav className="hidden xl:flex items-center gap-1.5 2xl:gap-2">
+              <a
+                href="#hero-section"
+                onClick={(e) => scrollToSection(e, 'hero-section')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${activeSection === 'hero-section'
+                  ? 'text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/70 shadow-xs border border-emerald-200/60 dark:border-emerald-800/60'
+                  : 'text-slate-700 dark:text-slate-200 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 border border-transparent'
+                  }`}
+              >
+                {txt.nav.home}
+              </a>
+              <a
+                href="#services-section"
+                onClick={(e) => scrollToSection(e, 'services-section')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${activeSection === 'services-section'
+                  ? 'text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/70 shadow-xs border border-emerald-200/60 dark:border-emerald-800/60'
+                  : 'text-slate-700 dark:text-slate-200 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 border border-transparent'
+                  }`}
+              >
+                {txt.nav.services}
+              </a>
+              <a
+                href="#about-section"
+                onClick={(e) => scrollToSection(e, 'about-section')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${activeSection === 'about-section'
+                  ? 'text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/70 shadow-xs border border-emerald-200/60 dark:border-emerald-800/60'
+                  : 'text-slate-700 dark:text-slate-200 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 border border-transparent'
+                  }`}
+              >
+                {txt.nav.about}
+              </a>
+              <a
+                href="#contact-section"
+                onClick={(e) => scrollToSection(e, 'contact-section')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${activeSection === 'contact-section'
+                  ? 'text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/70 shadow-xs border border-emerald-200/60 dark:border-emerald-800/60'
+                  : 'text-slate-700 dark:text-slate-200 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 border border-transparent'
+                  }`}
+              >
+                {txt.nav.contact}
+              </a>
+              <Link
+                to="/verify-certificate"
+                className="ml-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors shadow-2xs"
+              >
+                <CertificateIcon className="w-3.5 h-3.5" />
+                <span>{txt.nav.verify}</span>
+              </Link>
+            </nav>
+
+            {/* Right Action Controls (Uniform Heights & Aligned Rhythm) */}
+            <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+
+              {/* Theme Toggle (Moon / Sun) */}
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/90 dark:border-slate-700 transition-colors cursor-pointer"
+                title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              >
+                {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
+              </button>
+
+              {/* Language Switcher Dropdown */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setLangDropdownOpen(!langDropdownOpen)}
+                  className="h-9 px-2 sm:h-10 sm:px-3 flex items-center gap-1 sm:gap-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/90 dark:border-slate-700 transition-colors cursor-pointer"
+                >
+                  <Globe className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
+                  <span className="font-black">{isSomali ? 'SO' : 'EN'}</span>
+                  <ChevronDown className="w-3 h-3 text-slate-400" />
+                </button>
+
+                {langDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                    <button
+                      type="button"
+                      onClick={() => { setLanguage('so'); setLangDropdownOpen(false); }}
+                      className={`w-full text-left px-3.5 py-2.5 text-xs font-semibold flex items-center justify-between transition-colors ${isSomali ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 font-bold' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
+                        }`}
+                    >
+                      <span> Af-Soomaali (SO)</span>
+                      {isSomali && <Check className="w-3.5 h-3.5 text-emerald-700" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setLanguage('en'); setLangDropdownOpen(false); }}
+                      className={`w-full text-left px-3.5 py-2.5 text-xs font-semibold flex items-center justify-between transition-colors ${!isSomali ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 font-bold' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
+                        }`}
+                    >
+                      <span> English (EN)</span>
+                      {!isSomali && <Check className="w-3.5 h-3.5 text-emerald-700" />}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Authenticated Dashboard Button or Login/Register */}
+              {isAuthenticated && authUser ? (
+                <div className="flex items-center gap-2">
+                  <Link
+                    to={
+                      String(authUser.role || '').toUpperCase().includes('VOLUNTEER')
+                        ? '/volunteer/dashboard'
+                        : String(authUser.role || '').toUpperCase().includes('PUBLIC')
+                        ? '/community/portal'
+                        : '/admin/dashboard'
+                    }
+                    className="inline-flex h-9 sm:h-10 px-3.5 sm:px-5 items-center gap-1.5 sm:gap-2 bg-emerald-700 hover:bg-emerald-800 active:scale-[0.98] text-white text-xs font-bold whitespace-nowrap rounded-xl shadow-md shadow-emerald-950/20 hover:shadow-lg transition-all"
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>{isSomali ? 'Tag Dashboard-ka' : 'Go to Dashboard'}</span>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => logout()}
+                    title={isSomali ? 'Ka bax akoonka' : 'Sign out'}
+                    className="hidden sm:inline-flex h-9 sm:h-10 px-3 items-center gap-1 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50/50 dark:hover:bg-rose-950/30 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-800 transition-colors"
+                  >
+                    <span>{isSomali ? 'Ka bax' : 'Logout'}</span>
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* Join Volunteer CTA (Tablet & Desktop) */}
+                  <Link
+                    to="/register"
+                    className="hidden lg:inline-flex h-10 items-center gap-1.5 px-4 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 text-xs font-bold whitespace-nowrap rounded-xl border border-emerald-300/70 dark:border-emerald-800 transition-colors shadow-2xs"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>{txt.nav.joinVolunteer}</span>
+                  </Link>
+
+                  {/* Login Button (Desktop & Tablet) */}
+                  <Link
+                    to="/login"
+                    className="hidden sm:inline-flex h-9 sm:h-10 px-3.5 sm:px-5 items-center gap-1.5 sm:gap-2 bg-[#0a382c] hover:bg-[#072a21] active:scale-[0.98] text-white text-xs font-bold whitespace-nowrap rounded-xl shadow-md shadow-emerald-950/20 hover:shadow-lg transition-all"
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    <span>{txt.nav.login}</span>
+                  </Link>
+                </>
+              )}
+
+              {/* Mobile Hamburger Menu */}
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="xl:hidden w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 shrink-0"
+                aria-label="Toggle Menu"
+              >
+                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
+
+            </div>
+          </div>
+        </header>
 
       {/* Main Content Area Pushed Down by Fixed Navbar Height (h-16 / h-20) */}
       <main className="pt-16 sm:pt-20">
@@ -777,34 +810,39 @@ export default function HomePage() {
                 </div>
 
                 {/* Database Real Volunteers Initials Stack */}
-                <div className="flex items-center gap-3 pt-4">
-                  <div className="flex -space-x-2.5 overflow-hidden">
-                    {liveData.topVolunteers && liveData.topVolunteers.slice(0, 4).map((vol, idx) => {
-                      if (vol.avatar_url) {
+                {liveData.topVolunteers && liveData.topVolunteers.length > 0 && (
+                  <div className="flex items-center gap-3 pt-4">
+                    <div className="flex -space-x-2.5 overflow-hidden">
+                      {liveData.topVolunteers.slice(0, 4).map((vol, idx) => {
+                        if (vol.avatar_url) {
+                          return (
+                            <img
+                              key={vol.id || idx}
+                              className="inline-block h-9 w-9 rounded-full ring-2 ring-white dark:ring-slate-900 object-cover shadow-xs"
+                              src={vol.avatar_url}
+                              alt={vol.full_name}
+                            />
+                          );
+                        }
                         return (
-                          <img
+                          <div
                             key={vol.id || idx}
-                            className="inline-block h-9 w-9 rounded-full ring-2 ring-white dark:ring-slate-900 object-cover shadow-xs"
-                            src={vol.avatar_url}
-                            alt={vol.full_name}
-                          />
+                            className={`inline-flex items-center justify-center h-9 w-9 rounded-full ring-2 ring-white dark:ring-slate-900 bg-gradient-to-br ${AVATAR_GRADIENTS[idx % AVATAR_GRADIENTS.length]} text-[11px] font-black shadow-xs`}
+                            title={vol.full_name}
+                          >
+                            {getInitials(vol.full_name)}
+                          </div>
                         );
-                      }
-                      return (
-                        <div
-                          key={vol.id || idx}
-                          className={`inline-flex items-center justify-center h-9 w-9 rounded-full ring-2 ring-white dark:ring-slate-900 bg-gradient-to-br ${AVATAR_GRADIENTS[idx % AVATAR_GRADIENTS.length]} text-[11px] font-black shadow-xs`}
-                          title={vol.full_name}
-                        >
-                          {getInitials(vol.full_name)}
-                        </div>
-                      );
-                    })}
+                      })}
+                    </div>
+                    <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      <span className="font-extrabold text-slate-950 dark:text-white">
+                        {liveData.totalVolunteers || 0} {isSomali ? 'Hawl-wadeenno' : 'Health Volunteers'}
+                      </span>{' '}
+                      {txt.hero.volunteersJoined}
+                    </div>
                   </div>
-                  <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    <span className="font-extrabold text-slate-950 dark:text-white">{liveData.totalVolunteers || 10}+ {isSomali ? 'Hawl-wadeenno' : 'Health Volunteers'}</span> {txt.hero.volunteersJoined}
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* Right Hero Image with Floating Impact Badge */}
@@ -834,7 +872,7 @@ export default function HomePage() {
                         <path d="M0,20 Q20,18 35,14 T65,8 T100,2" />
                       </svg>
                       <div className="text-right">
-                        <span className="text-lg font-black text-emerald-300">+{liveData.growthPercentage || 20.5}%</span>
+                        <span className="text-lg font-black text-emerald-300">+{liveData.growthPercentage || 0}%</span>
                         <span className="block text-[9px] text-emerald-200/80 -mt-0.5">{txt.impactCard.vsMonth}</span>
                       </div>
                     </div>
@@ -858,7 +896,7 @@ export default function HomePage() {
                 <div className="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center mb-3.5">
                   <Users className="w-5 h-5" />
                 </div>
-                <p className="text-2xl sm:text-3xl font-black text-slate-950 dark:text-white">{liveData.totalVolunteers?.toLocaleString() || 10}</p>
+                <p className="text-2xl sm:text-3xl font-black text-slate-950 dark:text-white">{(liveData.totalVolunteers || 0).toLocaleString()}</p>
                 <p className="text-xs font-bold text-slate-600 dark:text-slate-300 mt-0.5">{txt.metrics.volunteersTitle}</p>
                 <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-1.5">
                   <span>{txt.metrics.volunteersSub}</span>
@@ -870,7 +908,7 @@ export default function HomePage() {
                 <div className="w-11 h-11 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-400 flex items-center justify-center mb-3.5">
                   <Calendar className="w-5 h-5" />
                 </div>
-                <p className="text-2xl sm:text-3xl font-black text-slate-950 dark:text-white">{liveData.activeCampaigns || 4}</p>
+                <p className="text-2xl sm:text-3xl font-black text-slate-950 dark:text-white">{(liveData.activeCampaigns || 0).toLocaleString()}</p>
                 <p className="text-xs font-bold text-slate-600 dark:text-slate-300 mt-0.5">{txt.metrics.campaignsTitle}</p>
                 <p className="text-[11px] font-semibold text-sky-600 dark:text-sky-400 flex items-center gap-1 mt-1.5">
                   <span>{txt.metrics.campaignsSub}</span>
@@ -882,7 +920,7 @@ export default function HomePage() {
                 <div className="w-11 h-11 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-400 flex items-center justify-center mb-3.5">
                   <MapPin className="w-5 h-5" />
                 </div>
-                <p className="text-2xl sm:text-3xl font-black text-slate-950 dark:text-white">{liveData.totalRegions || 18}</p>
+                <p className="text-2xl sm:text-3xl font-black text-slate-950 dark:text-white">{(liveData.totalRegions || 0).toLocaleString()}</p>
                 <p className="text-xs font-bold text-slate-600 dark:text-slate-300 mt-0.5">{txt.metrics.regionsTitle}</p>
                 <p className="text-[11px] font-semibold text-teal-600 dark:text-teal-400 flex items-center gap-1 mt-1.5">
                   <span>{txt.metrics.regionsSub}</span>
@@ -894,7 +932,7 @@ export default function HomePage() {
                 <div className="w-11 h-11 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400 flex items-center justify-center mb-3.5">
                   <FileText className="w-5 h-5" />
                 </div>
-                <p className="text-2xl sm:text-3xl font-black text-slate-950 dark:text-white">{liveData.totalFieldSubmissions?.toLocaleString() || 5}</p>
+                <p className="text-2xl sm:text-3xl font-black text-slate-950 dark:text-white">{(liveData.totalFieldSubmissions || 0).toLocaleString()}</p>
                 <p className="text-xs font-bold text-slate-600 dark:text-slate-300 mt-0.5">{txt.metrics.reportsTitle}</p>
                 <p className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 flex items-center gap-1 mt-1.5">
                   <span>{txt.metrics.reportsSub}</span>
@@ -1004,42 +1042,48 @@ export default function HomePage() {
                   <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800">
                     <h3 className="text-xs font-bold text-slate-950 dark:text-white">{txt.liveGrid.col1Title}</h3>
                     <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
-                      {liveData.topVolunteers?.length || 5} {txt.liveGrid.activeStatus}
+                      {liveData.topVolunteers?.length || 0} {txt.liveGrid.activeStatus}
                     </span>
                   </div>
 
                   <div className="divide-y divide-slate-100 dark:divide-slate-800 mt-2">
-                    {liveData.topVolunteers && liveData.topVolunteers.slice(0, 5).map((vol, idx) => (
-                      <div key={vol.id || idx} className="py-2.5 flex items-center justify-between">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          {vol.avatar_url ? (
-                            <img
-                              src={vol.avatar_url}
-                              alt={vol.full_name}
-                              className="w-8 h-8 rounded-full object-cover shrink-0"
-                            />
-                          ) : (
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-gradient-to-br ${AVATAR_GRADIENTS[idx % AVATAR_GRADIENTS.length]} text-[10px] font-black shadow-xs`}>
-                              {getInitials(vol.full_name)}
+                    {liveData.topVolunteers && liveData.topVolunteers.length > 0 ? (
+                      liveData.topVolunteers.slice(0, 5).map((vol, idx) => (
+                        <div key={vol.id || idx} className="py-2.5 flex items-center justify-between">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {vol.avatar_url ? (
+                              <img
+                                src={vol.avatar_url}
+                                alt={vol.full_name}
+                                className="w-8 h-8 rounded-full object-cover shrink-0"
+                              />
+                            ) : (
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-gradient-to-br ${AVATAR_GRADIENTS[idx % AVATAR_GRADIENTS.length]} text-[10px] font-black shadow-xs`}>
+                                {getInitials(vol.full_name)}
+                              </div>
+                            )}
+                            <div className="truncate">
+                              <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{vol.full_name}</p>
+                              <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{vol.region_name || 'Banaadir'}{vol.district_name ? `, ${vol.district_name}` : ''}</p>
                             </div>
-                          )}
-                          <div className="truncate">
-                            <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{vol.full_name}</p>
-                            <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{vol.region_name || 'Banaadir'}{vol.district_name ? `, ${vol.district_name}` : ''}</p>
                           </div>
+                          <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800 rounded-full">
+                            {vol.status === 'APPROVED' || vol.status === 'ACTIVE' ? txt.liveGrid.activeStatus : vol.status}
+                          </span>
                         </div>
-                        <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800 rounded-full">
-                          {vol.status === 'APPROVED' || vol.status === 'ACTIVE' ? txt.liveGrid.activeStatus : vol.status}
-                        </span>
+                      ))
+                    ) : (
+                      <div className="py-6 text-center text-xs text-slate-400 font-medium">
+                        {isSomali ? 'Weli ma jiraan volunteers' : 'No volunteers registered'}
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
 
                 {/* Total Footer */}
                 <div className="pt-3.5 mt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
                   <span className="font-semibold text-slate-500 dark:text-slate-400">{txt.liveGrid.totalVolunteersLabel}</span>
-                  <span className="font-extrabold text-slate-950 dark:text-white">{liveData.totalVolunteers || 10}</span>
+                  <span className="font-extrabold text-slate-950 dark:text-white">{liveData.totalVolunteers || 0}</span>
                 </div>
               </div>
 
@@ -1049,37 +1093,43 @@ export default function HomePage() {
                   <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800">
                     <h3 className="text-xs font-bold text-slate-950 dark:text-white">{txt.liveGrid.col2Title}</h3>
                     <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
-                      {liveData.activeCampaigns || 4} {txt.liveGrid.activeStatus}
+                      {liveData.activeCampaigns || 0} {txt.liveGrid.activeStatus}
                     </span>
                   </div>
 
                   <div className="divide-y divide-slate-100 dark:divide-slate-800 mt-2">
-                    {liveData.activeCampaignsList && liveData.activeCampaignsList.slice(0, 5).map((camp, idx) => (
-                      <div key={camp.id || idx} className="py-2.5 flex items-center justify-between">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-8 h-8 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-400 flex items-center justify-center shrink-0">
-                            <Calendar className="w-4 h-4" />
+                    {liveData.activeCampaignsList && liveData.activeCampaignsList.length > 0 ? (
+                      liveData.activeCampaignsList.slice(0, 5).map((camp, idx) => (
+                        <div key={camp.id || idx} className="py-2.5 flex items-center justify-between">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-8 h-8 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-400 flex items-center justify-center shrink-0">
+                              <Calendar className="w-4 h-4" />
+                            </div>
+                            <div className="truncate">
+                              <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{camp.name}</p>
+                              <p className="text-[10px] text-slate-500 dark:text-slate-400">{camp.region_name || 'National'} • {camp.start_date ? camp.start_date.slice(5) : ''}</p>
+                            </div>
                           </div>
-                          <div className="truncate">
-                            <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{camp.name}</p>
-                            <p className="text-[10px] text-slate-500 dark:text-slate-400">{camp.region_name || 'National'} • {camp.start_date ? camp.start_date.slice(5) : ''}</p>
-                          </div>
+                          <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${camp.status === 'ACTIVE'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800'
+                            : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800'
+                            }`}>
+                            {camp.status === 'ACTIVE' ? txt.liveGrid.activeStatus : txt.liveGrid.plannedStatus}
+                          </span>
                         </div>
-                        <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${camp.status === 'ACTIVE'
-                          ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800'
-                          : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800'
-                          }`}>
-                          {camp.status === 'ACTIVE' ? txt.liveGrid.activeStatus : txt.liveGrid.plannedStatus}
-                        </span>
+                      ))
+                    ) : (
+                      <div className="py-6 text-center text-xs text-slate-400 font-medium">
+                        {isSomali ? 'Weli ma jiraan kampaaniyo' : 'No active campaigns'}
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
 
                 {/* Total Footer */}
                 <div className="pt-3.5 mt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
                   <span className="font-semibold text-slate-500 dark:text-slate-400">{txt.liveGrid.totalCampaignsLabel}</span>
-                  <span className="font-extrabold text-slate-950 dark:text-white">{liveData.totalCampaigns || 9}</span>
+                  <span className="font-extrabold text-slate-950 dark:text-white">{liveData.totalCampaigns || 0}</span>
                 </div>
               </div>
 
@@ -1089,29 +1139,35 @@ export default function HomePage() {
                   <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800">
                     <h3 className="text-xs font-bold text-slate-950 dark:text-white">{txt.liveGrid.col3Title}</h3>
                     <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
-                      {liveData.totalRegions || 18} {txt.liveGrid.totalRegionsLabel}
+                      {liveData.totalRegions || 0} {txt.liveGrid.totalRegionsLabel}
                     </span>
                   </div>
 
                   <div className="divide-y divide-slate-100 dark:divide-slate-800 mt-2">
-                    {liveData.regionalCoverage && liveData.regionalCoverage.slice(0, 5).map((reg, idx) => (
-                      <div key={reg.id || idx} className="py-2.5 flex items-center justify-between">
-                        <div className="flex items-center gap-2.5">
-                          <MapPin className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
-                          <span className="text-xs font-bold text-slate-900 dark:text-white">{reg.name}</span>
+                    {liveData.regionalCoverage && liveData.regionalCoverage.length > 0 ? (
+                      liveData.regionalCoverage.slice(0, 5).map((reg, idx) => (
+                        <div key={reg.id || idx} className="py-2.5 flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <MapPin className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
+                            <span className="text-xs font-bold text-slate-900 dark:text-white">{reg.name}</span>
+                          </div>
+                          <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                            {reg.volunteers_count || 0} {isSomali ? 'Volunteers' : 'CHVs'}
+                          </span>
                         </div>
-                        <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                          {reg.volunteers_count || 1} {isSomali ? 'Volunteers' : 'CHVs'}
-                        </span>
+                      ))
+                    ) : (
+                      <div className="py-6 text-center text-xs text-slate-400 font-medium">
+                        {isSomali ? 'Weli ma jiraan gobolo' : 'No regions recorded'}
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
 
                 {/* Total Footer */}
                 <div className="pt-3.5 mt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
                   <span className="font-semibold text-slate-500 dark:text-slate-400">{txt.liveGrid.totalRegionsLabel}</span>
-                  <span className="font-extrabold text-slate-950 dark:text-white">{liveData.totalRegions || 18}</span>
+                  <span className="font-extrabold text-slate-950 dark:text-white">{liveData.totalRegions || 0}</span>
                 </div>
               </div>
 
@@ -1126,29 +1182,35 @@ export default function HomePage() {
                   </div>
 
                   <div className="divide-y divide-slate-100 dark:divide-slate-800 mt-2">
-                    {liveData.recentReports && liveData.recentReports.slice(0, 5).map((rep, idx) => (
-                      <div key={rep.id || idx} className="py-2.5 flex items-center justify-between">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 flex items-center justify-center shrink-0">
-                            <FileText className="w-4 h-4" />
+                    {liveData.recentReports && liveData.recentReports.length > 0 ? (
+                      liveData.recentReports.slice(0, 5).map((rep, idx) => (
+                        <div key={rep.id || idx} className="py-2.5 flex items-center justify-between">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 flex items-center justify-center shrink-0">
+                              <FileText className="w-4 h-4" />
+                            </div>
+                            <div className="truncate">
+                              <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{rep.campaign_name || rep.form_title || 'Warbixin Caafimaad'}</p>
+                              <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{rep.region_name || 'Banaadir'} • {rep.volunteer_name || 'CHV'}</p>
+                            </div>
                           </div>
-                          <div className="truncate">
-                            <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{rep.campaign_name || rep.form_title || 'Warbixin Caafimaad'}</p>
-                            <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{rep.region_name || 'Banaadir'} • {rep.volunteer_name || 'CHV'}</p>
-                          </div>
+                          <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800 rounded-full">
+                            {txt.liveGrid.submittedStatus}
+                          </span>
                         </div>
-                        <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800 rounded-full">
-                          {txt.liveGrid.submittedStatus}
-                        </span>
+                      ))
+                    ) : (
+                      <div className="py-6 text-center text-xs text-slate-400 font-medium">
+                        {isSomali ? 'Weli ma jiraan warbixinno' : 'No submissions yet'}
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
 
                 {/* Total Footer */}
                 <div className="pt-3.5 mt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
                   <span className="font-semibold text-slate-500 dark:text-slate-400">{txt.liveGrid.totalReportsLabel}</span>
-                  <span className="font-extrabold text-slate-950 dark:text-white">{liveData.totalFieldSubmissions || 5}</span>
+                  <span className="font-extrabold text-slate-950 dark:text-white">{liveData.totalFieldSubmissions || 0}</span>
                 </div>
               </div>
 
@@ -1186,8 +1248,7 @@ export default function HomePage() {
                         <Users className="w-4 h-4" />
                         <span className="text-xs font-semibold text-emerald-100">{txt.impactSection.metric1Label}</span>
                       </div>
-                      <p className="text-2xl font-black text-white tracking-tight">{liveData.totalPeopleReached?.toLocaleString() || '380,000'}</p>
-                      <p className="text-[10px] font-semibold text-emerald-300 mt-1">↑ 16.4% {isSomali ? 'bishii hore' : 'vs last month'}</p>
+                      <p className="text-2xl font-black text-white tracking-tight">{(liveData.totalPeopleReached || 0).toLocaleString()}</p>
                     </div>
 
                     {/* Impact 2: Services Delivered */}
@@ -1196,8 +1257,7 @@ export default function HomePage() {
                         <ClipboardList className="w-4 h-4" />
                         <span className="text-xs font-semibold text-emerald-100">{txt.impactSection.metric2Label}</span>
                       </div>
-                      <p className="text-2xl font-black text-white tracking-tight">{liveData.totalServicesDelivered?.toLocaleString() || '4,895'}</p>
-                      <p className="text-[10px] font-semibold text-emerald-300 mt-1">↑ 12.8% {isSomali ? 'bishii hore' : 'vs last month'}</p>
+                      <p className="text-2xl font-black text-white tracking-tight">{(liveData.totalServicesDelivered || 0).toLocaleString()}</p>
                     </div>
 
                     {/* Impact 3: Medical Supplies Stock */}
@@ -1206,8 +1266,7 @@ export default function HomePage() {
                         <Package className="w-4 h-4" />
                         <span className="text-xs font-semibold text-emerald-100">{txt.impactSection.metric3Label}</span>
                       </div>
-                      <p className="text-2xl font-black text-white tracking-tight">{liveData.totalSuppliesStock?.toLocaleString() || '52,000'}</p>
-                      <p className="text-[10px] font-semibold text-emerald-300 mt-1">↑ 18.6% {isSomali ? 'bishii hore' : 'vs last month'}</p>
+                      <p className="text-2xl font-black text-white tracking-tight">{(liveData.totalSuppliesStock || 0).toLocaleString()}</p>
                     </div>
 
                     {/* Impact 4: Facilities Linked */}
@@ -1216,8 +1275,7 @@ export default function HomePage() {
                         <Building2 className="w-4 h-4" />
                         <span className="text-xs font-semibold text-emerald-100">{txt.impactSection.metric4Label}</span>
                       </div>
-                      <p className="text-2xl font-black text-white tracking-tight">{liveData.totalFacilities || 10}</p>
-                      <p className="text-[10px] font-semibold text-emerald-300 mt-1">↑ 9.3% {isSomali ? 'bishii hore' : 'vs last month'}</p>
+                      <p className="text-2xl font-black text-white tracking-tight">{(liveData.totalFacilities || 0).toLocaleString()}</p>
                     </div>
                   </div>
                 </div>
@@ -1245,25 +1303,46 @@ export default function HomePage() {
                   {/* Custom Responsive Dual-Bar Chart */}
                   <div className="space-y-4 pt-2">
                     <div className="h-44 flex items-end justify-between gap-3 px-2 border-b border-slate-200 dark:border-slate-700 pb-2">
-                      {liveData.weeklyActivity && liveData.weeklyActivity.map((dayItem, idx) => (
-                        <div key={idx} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
-                          <div className="w-full flex items-end justify-center gap-1 h-full">
-                            <div
-                              className="w-3 sm:w-3.5 bg-[#0a382c] dark:bg-emerald-700 rounded-t-md transition-all"
-                              style={{ height: `${Math.min(100, Math.max(25, (dayItem.reports / 280) * 100))}%` }}
-                              title={`${dayItem.reports} submissions`}
-                            ></div>
-                            <div
-                              className="w-3 sm:w-3.5 bg-emerald-500 dark:bg-emerald-400 rounded-t-md transition-all"
-                              style={{ height: `${Math.min(100, Math.max(30, (dayItem.services / 600) * 100))}%` }}
-                              title={`${dayItem.services} services`}
-                            ></div>
-                          </div>
-                          <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 dark:text-slate-300">
-                            {isSomali ? dayItem.daySo : dayItem.day}
-                          </span>
+                      {liveData.weeklyActivity && liveData.weeklyActivity.some(d => Number(d.reports || 0) > 0 || Number(d.services || 0) > 0) ? (
+                        (() => {
+                          const maxReports = Math.max(...liveData.weeklyActivity.map((d) => d.reports || 0), 1);
+                          const maxServices = Math.max(...liveData.weeklyActivity.map((d) => d.services || 0), 1);
+                          return liveData.weeklyActivity.map((dayItem, idx) => {
+                            const repPct = (dayItem.reports || 0) > 0 ? Math.max(14, Math.round(((dayItem.reports || 0) / maxReports) * 100)) : 0;
+                            const srvPct = (dayItem.services || 0) > 0 ? Math.max(14, Math.round(((dayItem.services || 0) / maxServices) * 100)) : 0;
+
+                            return (
+                              <div key={idx} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
+                                <div className="w-full flex items-end justify-center gap-1 h-full">
+                                  <div
+                                    className="w-3 sm:w-3.5 bg-[#0a382c] dark:bg-emerald-700 rounded-t-md transition-all duration-300"
+                                    style={{ height: `${repPct}%` }}
+                                    title={`${dayItem.reports || 0} ${isSomali ? 'warbixinno' : 'reports'}`}
+                                  ></div>
+                                  <div
+                                    className="w-3 sm:w-3.5 bg-emerald-500 dark:bg-emerald-400 rounded-t-md transition-all duration-300"
+                                    style={{ height: `${srvPct}%` }}
+                                    title={`${dayItem.services || 0} ${isSomali ? 'adeegyo' : 'services'}`}
+                                  ></div>
+                                </div>
+                                <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                                  {isSomali ? dayItem.daySo : dayItem.day}
+                                </span>
+                              </div>
+                            );
+                          });
+                        })()
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-center p-6 text-slate-400 dark:text-slate-500">
+                          <ClipboardList className="w-8 h-8 mx-auto mb-2 text-slate-300 dark:text-slate-600 opacity-60" />
+                          <p className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                            {isSomali ? 'Weli ma jiraan xog ururin la soo gudbiyey' : 'No field reports submitted this week'}
+                          </p>
+                          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 max-w-xs">
+                            {isSomali ? 'Xogta tooska ah waxay halkan ka soo muuqan doontaa marka hawl-wadeennadu warbixinno soo diraan.' : 'Live activity data will stream here as community health volunteers submit reports from the field.'}
+                          </p>
                         </div>
-                      ))}
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1529,17 +1608,24 @@ export default function HomePage() {
 
                   <button
                     type="submit"
-                    className="w-full py-3.5 px-6 bg-[#0a382c] hover:bg-[#072a21] text-white text-xs font-bold rounded-xl shadow-md transition-colors flex items-center justify-center gap-2"
+                    disabled={contactSubmitting}
+                    className="w-full py-3.5 px-6 bg-[#0a382c] hover:bg-[#072a21] disabled:opacity-60 text-white text-xs font-bold rounded-xl shadow-md transition-colors flex items-center justify-center gap-2"
                   >
-                    <Send className="w-3.5 h-3.5" />
-                    <span>{txt.contact.submitBtn}</span>
+                    {contactSubmitting ? (
+                      <><Loader2 className="w-3.5 h-3.5 animate-spin" /> <span>{isSomali ? 'Diraya...' : 'Sending...'}</span></>
+                    ) : (
+                      <><Send className="w-3.5 h-3.5" /> <span>{txt.contact.submitBtn}</span></>
+                    )}
                   </button>
 
                   {contactSubmitted && (
-                    <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+                    <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
                       <span>{txt.contact.successMsg}</span>
                     </div>
+                  )}
+                  {contactError && !contactSubmitted && (
+                    <p className="text-xs text-red-600 dark:text-red-400 font-medium">{contactError}</p>
                   )}
                 </form>
               </div>
@@ -1631,8 +1717,10 @@ export default function HomePage() {
                     />
                     <button
                       type="submit"
-                      className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-xs transition-colors shrink-0"
+                      disabled={subscribing}
+                      className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white text-xs font-bold rounded-xl shadow-xs transition-colors shrink-0 flex items-center gap-1.5"
                     >
+                      {subscribing ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
                       {txt.footer.subscribeBtn}
                     </button>
                   </div>
@@ -1640,6 +1728,9 @@ export default function HomePage() {
                     <p className="text-[11px] text-emerald-300 flex items-center gap-1 mt-1">
                       <Check className="w-3.5 h-3.5" /> {txt.footer.subscribedMsg}
                     </p>
+                  )}
+                  {subscribeError && !subscribed && (
+                    <p className="text-[11px] text-red-400">{subscribeError}</p>
                   )}
                 </form>
               </div>
@@ -1655,6 +1746,7 @@ export default function HomePage() {
         </footer>
       </main>
 
+      </div>
     </div>
   );
 }

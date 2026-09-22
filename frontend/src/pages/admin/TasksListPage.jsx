@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useNotification } from '../../contexts/NotificationContext';
-import { CheckSquare, Plus, MapPin, Calendar, Clock, Edit, Trash2, AlertCircle, ListTodo, PlayCircle, CheckCircle, Flame } from 'lucide-react';
+import { CheckSquare, Plus, MapPin, Calendar, Clock, Edit, Trash2, AlertCircle, ListTodo, PlayCircle, CheckCircle, Flame, User, Phone } from 'lucide-react';
 import DataTable from '../../components/common/DataTable';
 import StatCard from '../../components/common/StatCard';
 import Badge from '../../components/common/Badge';
@@ -9,7 +9,7 @@ import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import { Input, Select, Textarea } from '../../components/common/Input';
 import api from '../../services/api';
-import { validateFutureOrTodayDate } from '../../utils/validation';
+import { validateFutureOrTodayDate, getTodayDateString } from '../../utils/validation';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 
 
@@ -133,7 +133,7 @@ export default function TasksListPage() {
       return;
     }
 
-    const startCheck = validateFutureOrTodayDate(form.start_datetime, 'Taariikhda bilaabashada (Start Date)', language);
+    const startCheck = validateFutureOrTodayDate(form.start_datetime, language === 'so' ? 'Taariikhda bilaabashada (Start Date)' : 'Start Date', language);
     if (!startCheck.isValid) {
       setModalError(startCheck.message);
       return;
@@ -144,8 +144,9 @@ export default function TasksListPage() {
       return;
     }
 
-    if (new Date(form.end_datetime) < new Date(form.start_datetime)) {
-      setModalError(language === 'so' ? 'Taariikhda kama dambaysta ah kama horreyn karto taariikhda bilaabashada' : 'Deadline date cannot be earlier than start date');
+    const endCheck = validateFutureOrTodayDate(form.end_datetime, language === 'so' ? 'Taariikhda kama dambaysta ah (Deadline Date)' : 'Deadline Date', language, false, form.start_datetime);
+    if (!endCheck.isValid) {
+      setModalError(endCheck.message);
       return;
     }
 
@@ -283,11 +284,83 @@ export default function TasksListPage() {
     },
     {
       header: language === 'so' ? 'Hawl-wadeenka La Xilsaaray' : 'Assigned Volunteer',
-      render: (row) => (
-        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-          {row.volunteer_name || (language === 'so' ? 'Aan la qoondeyn' : 'Unassigned')}
-        </span>
-      )
+      render: (row) => {
+        const name = row.assigned_volunteer_name || row.volunteer_name;
+        const code = row.assigned_volunteer_code;
+        const phone = row.assigned_volunteer_phone;
+        const avatar = row.assigned_volunteer_avatar;
+        const aStatus = row.assignment_status;
+
+        if (!name) {
+          return (
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
+                <User className="w-3.5 h-3.5 text-slate-400" />
+              </div>
+              <span className="text-xs text-slate-400 dark:text-slate-500 italic">
+                {language === 'so' ? 'Aan la qoondeyn' : 'Unassigned'}
+              </span>
+            </div>
+          );
+        }
+
+        const initials = name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+        const aStatusColor = aStatus === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+          : aStatus === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+          : aStatus === 'ACCEPTED' ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400'
+          : aStatus === 'REJECTED' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+          : aStatus === 'CANCELLED' ? 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+          : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+        const aStatusLabel = language === 'so'
+          ? (aStatus === 'COMPLETED' ? 'Dhameystiran' : aStatus === 'IN_PROGRESS' ? 'Socda' : aStatus === 'ACCEPTED' ? 'La Aqbalay' : aStatus === 'REJECTED' ? 'La Diiday' : aStatus === 'CANCELLED' ? 'La Joojiyay' : 'Lagula Xilsaaray')
+          : (aStatus || 'Assigned');
+
+        return (
+          <div className="flex items-center gap-2 min-w-0">
+            {avatar ? (
+              <>
+                <img
+                  src={avatar}
+                  alt={name}
+                  className="w-7 h-7 rounded-full object-cover shrink-0 ring-1 ring-teal-400/40"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    const fallback = e.target.parentNode.querySelector('[data-initials]');
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
+                />
+                <div
+                  data-initials="true"
+                  style={{ display: 'none' }}
+                  className="w-7 h-7 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 items-center justify-center shrink-0 text-white text-[10px] font-bold ring-1 ring-teal-400/30"
+                >
+                  {initials}
+                </div>
+              </>
+            ) : (
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shrink-0 text-white text-[10px] font-bold ring-1 ring-teal-400/30">
+                {initials}
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate leading-tight">{name}</p>
+              {code && (
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono leading-tight">{code}</p>
+              )}
+              {phone && (
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-0.5 leading-tight">
+                  <Phone className="w-2.5 h-2.5" />{phone}
+                </p>
+              )}
+              {aStatus && (
+                <span className={`inline-block mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide ${aStatusColor}`}>
+                  {aStatusLabel}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      }
     },
     {
       header: language === 'so' ? 'Goobta' : 'Location',
@@ -475,6 +548,8 @@ export default function TasksListPage() {
               label={language === 'so' ? 'Taariikhda Bilowga *' : 'Start Date *'}
               name="start_datetime"
               type="date"
+              min={getTodayDateString()}
+              validationType="future-date"
               value={form.start_datetime}
               onChange={(e) => setForm({ ...form, start_datetime: e.target.value })}
               required
@@ -484,6 +559,8 @@ export default function TasksListPage() {
               label={language === 'so' ? 'Taariikhda Ugu Dambaysa *' : 'Deadline Date *'}
               name="end_datetime"
               type="date"
+              min={form.start_datetime || getTodayDateString()}
+              validationType="future-date"
               value={form.end_datetime}
               onChange={(e) => setForm({ ...form, end_datetime: e.target.value })}
               required

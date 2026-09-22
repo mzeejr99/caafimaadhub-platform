@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
+import 'leaflet/dist/leaflet.css';
 
 // Context Providers
 import { LanguageProvider } from './contexts/LanguageContext';
@@ -16,7 +17,7 @@ import * as serviceWorkerRegistration from './offline/serviceWorkerRegistration'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <ThemeProvider>
         <LanguageProvider>
           <AuthProvider>

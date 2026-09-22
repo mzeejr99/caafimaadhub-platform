@@ -161,6 +161,13 @@ class CampaignService {
       throw { status: 400, message: 'Name, type, start date, and end date are required' };
     }
 
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const startStr = String(startDate).split('T')[0].split(' ')[0];
+    if (startStr < todayStr) {
+      throw { status: 400, message: 'Taariikhda bilaabashada ololaha ma noqon karto mid hore u soo dhaaftay (Campaign start date cannot be in the past)' };
+    }
+
     if (new Date(endDate) < new Date(startDate)) {
       throw { status: 400, message: 'Campaign end date cannot be earlier than start date' };
     }

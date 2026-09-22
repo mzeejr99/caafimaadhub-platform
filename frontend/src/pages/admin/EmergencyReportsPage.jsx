@@ -171,24 +171,50 @@ export default function EmergencyReportsPage() {
             <AlertTriangle className="w-7 h-7 text-red-600 dark:text-red-400" /> {t('nav.emergencies')}
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Real-time disease outbreak detection, severe alerts, and rapid emergency field coordination
+            {language === 'so'
+              ? 'Ogaanshaha cudurrada dillaacay ee waqtiga dhabta ah, digniinaha halista ah, iyo iskuduwidda gurmadka goobta'
+              : 'Real-time disease outbreak detection, severe alerts, and rapid emergency field coordination'}
           </p>
         </div>
       </div>
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard value={emergencies.filter(e => !['RESOLVED','FALSE_ALARM'].includes(e.status)).length} label={t('emerg_admin.active_alerts')} icon={Siren} color="red" subtitle="Unresolved emergencies" />
-        <StatCard value={emergencies.filter(e => e.severity === 'CRITICAL').length} label={t('emerg_admin.critical')} icon={ShieldAlert} color="red" subtitle="Immediate response needed" />
-        <StatCard value={emergencies.filter(e => e.severity === 'HIGH').length} label={t('emerg_admin.high')} icon={AlertTriangle} color="orange" subtitle="High priority incidents" />
-        <StatCard value={emergencies.filter(e => e.status === 'RESOLVED').length} label={t('emerg_admin.resolved')} icon={CheckCircle2} color="emerald" subtitle="Closed incidents" />
+        <StatCard 
+          value={emergencies.filter(e => !['RESOLVED','FALSE_ALARM'].includes(e.status)).length} 
+          label={t('emerg_admin.active_alerts')} 
+          icon={Siren} 
+          color="red" 
+          subtitle={language === 'so' ? 'Xaalado deg-deg ah oo furan' : 'Unresolved emergencies'} 
+        />
+        <StatCard 
+          value={emergencies.filter(e => e.severity === 'CRITICAL').length} 
+          label={t('emerg_admin.critical')} 
+          icon={ShieldAlert} 
+          color="red" 
+          subtitle={language === 'so' ? 'Gurmad deg-deg ah loo baahan yahay' : 'Immediate response needed'} 
+        />
+        <StatCard 
+          value={emergencies.filter(e => e.severity === 'HIGH').length} 
+          label={t('emerg_admin.high')} 
+          icon={AlertTriangle} 
+          color="orange" 
+          subtitle={language === 'so' ? 'Dhacdooyinka mudnaanta sare leh' : 'High priority incidents'} 
+        />
+        <StatCard 
+          value={emergencies.filter(e => e.status === 'RESOLVED').length} 
+          label={t('emerg_admin.resolved')} 
+          icon={CheckCircle2} 
+          color="emerald" 
+          subtitle={language === 'so' ? 'Dhacdooyinka la xalliyay' : 'Closed incidents'} 
+        />
       </div>
 
       <DataTable
         columns={columns}
         data={emergencies}
         loading={loading}
-        searchPlaceholder="Search emergency reports..."
+        searchPlaceholder={language === 'so' ? 'Raadi warbixinnada xaaladaha deg-degga ah...' : 'Search emergency reports...'}
       />
 
       {/* REVIEW & RESPOND MODAL */}

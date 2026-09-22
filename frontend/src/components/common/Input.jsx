@@ -8,7 +8,10 @@ import {
   validateEmail,
   validateNumberOnly,
   validatePhone,
-  validatePassword
+  validatePassword,
+  validateFutureOrTodayDate,
+  validateAge18Plus,
+  getTodayDateString
 } from '../../utils/validation';
 import { useLanguage } from '../../contexts/LanguageContext';
 
@@ -37,6 +40,9 @@ export function Input({
   submitted = false,
   enableSpeech = false,
   autoComplete,
+  allowPast = false,
+  min,
+  max,
   ...props
 }) {
   const { language } = useLanguage();
@@ -46,6 +52,8 @@ export function Input({
 
   const valString = value !== undefined && value !== null ? String(value) : '';
   const isEmpty = valString.trim() === '';
+
+  const isDateField = type === 'date' || validationType === 'future-date' || validationType === 'age-18' || validationType === 'date';
 
   let isFieldValid = false;
   let validationMessage = '';
@@ -77,6 +85,19 @@ export function Input({
       pwdState = validatePassword(valString, language);
       isFieldValid = pwdState.isValid;
       validationMessage = pwdState.message;
+    } else if (validationType === 'age-18') {
+      const r = validateAge18Plus(valString, language, label || 'Taariikhda dhalashada');
+      isFieldValid = r.isValid;
+      validationMessage = r.message;
+    } else if (isDateField) {
+      if (allowPast || validationType === 'past-date') {
+        isFieldValid = true;
+        validationMessage = '';
+      } else {
+        const r = validateFutureOrTodayDate(valString, label || 'Taariikhda', language, false, min);
+        isFieldValid = r.isValid;
+        validationMessage = r.message;
+      }
     } else {
       isFieldValid = true;
       validationMessage = '';
@@ -180,6 +201,13 @@ export function Input({
     ? 'text-sky-600 dark:text-sky-400'
     : 'text-slate-400 dark:text-slate-500';
 
+  // Default min for date picker if not allowing past
+  const effectiveMin = min !== undefined
+    ? min
+    : (isDateField && !allowPast && validationType !== 'age-18' && validationType !== 'past-date')
+      ? getTodayDateString()
+      : undefined;
+
   return (
     <div className={`relative ${className}`}>
       {/* Outlined Container */}
@@ -213,6 +241,8 @@ export function Input({
           name={name}
           type={effectiveType}
           value={valString}
+          min={effectiveMin}
+          max={max}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           onFocus={handleFocus}
