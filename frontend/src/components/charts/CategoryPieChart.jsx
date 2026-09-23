@@ -15,15 +15,19 @@ export default function CategoryPieChart({
   colors = ['#0d9488', '#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'],
   type = 'doughnut',
   height = 240,
-  cutout = '65%'
+  cutout = '65%',
+  isDark = false
 }) {
+  const legendTextColor = isDark ? '#e2e8f0' : '#334155';
+  const segmentBorderColor = isDark ? '#0f172a' : '#ffffff';
+
   const chartData = {
     labels,
     datasets: [
       {
         data,
         backgroundColor: colors.slice(0, labels.length),
-        borderColor: '#ffffff',
+        borderColor: segmentBorderColor,
         borderWidth: 2,
         hoverOffset: 4
       }
@@ -38,6 +42,7 @@ export default function CategoryPieChart({
       legend: {
         position: 'bottom',
         labels: {
+          color: legendTextColor,
           boxWidth: 12,
           padding: 12,
           usePointStyle: true,

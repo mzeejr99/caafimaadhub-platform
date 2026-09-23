@@ -168,6 +168,16 @@ async function initSchemaAndSeeds() {
     } catch (err) {
       console.warn('[SchemaInit] Training curriculum check warning:', err.message);
     }
+    // Ensure created_by column exists in certificates table
+    try {
+      const certCols = sqliteDb.prepare("PRAGMA table_info(certificates)").all();
+      if (!certCols.some(c => c.name === 'created_by')) {
+        sqliteDb.exec("ALTER TABLE certificates ADD COLUMN created_by TEXT");
+        console.log('[SchemaInit] Added missing created_by column to certificates table.');
+      }
+    } catch (colErr) {
+      // Ignore if table doesn't exist yet or already added
+    }
   } else {
     // MySQL mode
     try {
@@ -222,6 +232,13 @@ async function initSchemaAndSeeds() {
         await db.execute("UPDATE users SET role = 'Volunteer' WHERE id IN (SELECT user_id FROM user_roles WHERE role_id = 'role-volunteer') AND role NOT IN ('Superadmin', 'Admin', 'DataAnalyst')");
       } catch (syncErr) {
         console.warn('[SchemaInit] MySQL User roles self-healing sync warning:', syncErr.message);
+      }
+
+      // Ensure created_by column exists in certificates table in MySQL
+      try {
+        await db.execute("ALTER TABLE `certificates` ADD COLUMN `created_by` VARCHAR(36) NULL");
+      } catch (colErr) {
+        // Ignore if column already exists
       }
     } catch (e) {
       console.error('[SchemaInit] MySQL check error:', e.message);

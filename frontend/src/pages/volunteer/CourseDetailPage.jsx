@@ -20,7 +20,7 @@ function LessonBody({ text }) {
       .split(/(\*\*[^*]+\*\*)/g)
       .map((part, i) =>
         part.startsWith('**') && part.endsWith('**')
-          ? <strong key={i} className="font-bold text-slate-900">{part.slice(2, -2)}</strong>
+          ? <strong key={i} className="font-bold text-slate-900 dark:text-white">{part.slice(2, -2)}</strong>
           : <span key={i}>{part}</span>
       );
 
@@ -30,9 +30,9 @@ function LessonBody({ text }) {
   const flushList = () => {
     if (list) {
       blocks.push(
-        <ul key={`ul-${blocks.length}`} className="list-disc pl-5 space-y-1.5 my-3">
+        <ul key={`ul-${blocks.length}`} className="list-disc pl-5 space-y-1.5 my-3 text-slate-700 dark:text-slate-200">
           {list.map((item, i) => (
-            <li key={i} className="text-sm text-slate-700 leading-relaxed">{inline(item)}</li>
+            <li key={i} className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{inline(item)}</li>
           ))}
         </ul>
       );
@@ -60,27 +60,27 @@ function LessonBody({ text }) {
 
     if (line.startsWith('### ')) {
       blocks.push(
-        <h3 key={idx} className="text-base font-extrabold text-slate-900 mt-5 mb-2">{line.slice(4)}</h3>
+        <h3 key={idx} className="text-base font-extrabold text-slate-900 dark:text-white mt-5 mb-2">{line.slice(4)}</h3>
       );
     } else if (line.startsWith('## ')) {
       blocks.push(
-        <h2 key={idx} className="text-lg font-extrabold text-slate-900 mt-5 mb-2">{line.slice(3)}</h2>
+        <h2 key={idx} className="text-lg font-extrabold text-slate-900 dark:text-white mt-5 mb-2">{line.slice(3)}</h2>
       );
     } else if (line.startsWith('> ')) {
       blocks.push(
-        <blockquote key={idx} className="border-l-4 border-teal-400 bg-teal-50/60 px-4 py-2.5 my-3 rounded-r-lg">
-          <p className="text-xs text-teal-900 leading-relaxed">{inline(line.slice(2))}</p>
+        <blockquote key={idx} className="border-l-4 border-teal-500 bg-teal-50/80 dark:bg-teal-950/40 px-4 py-2.5 my-3 rounded-r-lg">
+          <p className="text-xs text-teal-950 dark:text-teal-200 leading-relaxed font-medium">{inline(line.slice(2))}</p>
         </blockquote>
       );
     } else {
       blocks.push(
-        <p key={idx} className="text-sm text-slate-700 leading-relaxed my-2">{inline(line)}</p>
+        <p key={idx} className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed my-2.5">{inline(line)}</p>
       );
     }
   });
 
   flushList();
-  return <div>{blocks}</div>;
+  return <div className="text-slate-800 dark:text-slate-200 leading-relaxed">{blocks}</div>;
 }
 
 /** Renders the media of a lesson according to its content_type. */
@@ -97,7 +97,7 @@ function LessonMedia({ lesson, t }) {
         .replace('watch?v=', 'embed/')
         .replace('youtu.be/', 'www.youtube.com/embed/');
       return (
-        <div className="aspect-video w-full rounded-xl overflow-hidden border border-slate-200 bg-black">
+        <div className="aspect-video w-full rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-black">
           <iframe
             src={embedUrl}
             title={lesson.title}
@@ -113,7 +113,7 @@ function LessonMedia({ lesson, t }) {
         key={url}
         controls
         preload="metadata"
-        className="w-full rounded-xl border border-slate-200 bg-black max-h-[420px]"
+        className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-black max-h-[420px]"
       >
         <source src={url} />
         {t('course.video_fallback')}
@@ -124,10 +124,10 @@ function LessonMedia({ lesson, t }) {
   if (type === 'PDF') {
     return (
       <div className="space-y-3">
-        <object data={url} type="application/pdf" className="w-full h-[520px] rounded-xl border border-slate-200 bg-slate-50">
+        <object data={url} type="application/pdf" className="w-full h-[520px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
           <div className="p-6 text-center">
             <FileText className="w-10 h-10 text-slate-400 mx-auto mb-2" />
-            <p className="text-xs text-slate-600 mb-3">
+            <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">
               {t('course.pdf_fallback')}
             </p>
           </div>
@@ -140,11 +140,11 @@ function LessonMedia({ lesson, t }) {
   }
 
   if (type === 'IMAGE') {
-    return <img src={url} alt={lesson.title} className="w-full rounded-xl border border-slate-200" />;
+    return <img src={url} alt={lesson.title} className="w-full rounded-xl border border-slate-200 dark:border-slate-700" />;
   }
 
   return (
-    <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm text-teal-700 font-semibold underline">
+    <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm text-teal-700 dark:text-teal-400 font-semibold underline">
       {t('course.open_material')}
     </a>
   );

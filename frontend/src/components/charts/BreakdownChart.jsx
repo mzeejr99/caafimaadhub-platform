@@ -26,8 +26,12 @@ export default function BreakdownChart({
   horizontal = false,
   backgroundColor = 'rgba(13, 148, 136, 0.75)',
   borderColor = 'rgb(13, 148, 136)',
-  height = 260
+  height = 260,
+  isDark = false
 }) {
+  const gridColor = isDark ? 'rgba(148,163,184,0.15)' : '#f1f5f9';
+  const tickColor = isDark ? '#94a3b8' : '#64748b';
+
   const options = {
     indexAxis: horizontal ? 'y' : 'x',
     responsive: true,
@@ -42,12 +46,12 @@ export default function BreakdownChart({
     },
     scales: {
       x: {
-        grid: { color: horizontal ? '#f1f5f9' : 'transparent' },
-        ticks: { font: { size: 11 } }
+        grid: { color: horizontal ? gridColor : 'transparent' },
+        ticks: { font: { size: 11 }, color: tickColor }
       },
       y: {
-        grid: { color: horizontal ? 'transparent' : '#f1f5f9' },
-        ticks: { font: { size: 11 } }
+        grid: { color: horizontal ? 'transparent' : gridColor },
+        ticks: { font: { size: 11 }, color: tickColor }
       }
     }
   };

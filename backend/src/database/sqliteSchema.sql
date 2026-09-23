@@ -440,9 +440,11 @@ CREATE TABLE IF NOT EXISTS certificates (
   expiry_date TEXT,
   score_achieved INTEGER NOT NULL,
   verification_code TEXT UNIQUE NOT NULL,
+  created_by TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (volunteer_id) REFERENCES volunteers(id) ON DELETE CASCADE,
-  FOREIGN KEY (course_id) REFERENCES training_courses(id) ON DELETE CASCADE
+  FOREIGN KEY (course_id) REFERENCES training_courses(id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS inventory_locations (

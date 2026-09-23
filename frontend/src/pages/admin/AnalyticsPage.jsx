@@ -17,6 +17,8 @@ ChartJS.register(
   Title, Tooltip, Legend, Filler
 );
 
+import { useTheme } from '../../contexts/ThemeContext';
+
 const STATUS_COLORS = {
   ACTIVE: '#10b981',
   APPROVED: '#0d9488',
@@ -29,9 +31,14 @@ const STATUS_COLORS = {
 
 export default function AnalyticsPage() {
   const { t } = useLanguage();
+  const { isDark } = useTheme();
   const [dashboard, setDashboard] = useState(null);
   const [trends, setTrends] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const gridColor = isDark ? 'rgba(148,163,184,0.15)' : '#f1f5f9';
+  const tickColor = isDark ? '#94a3b8' : '#64748b';
+  const legendColor = isDark ? '#e2e8f0' : '#334155';
 
   useEffect(() => {
     fetchAll();
@@ -69,7 +76,7 @@ export default function AnalyticsPage() {
         label: t('analytics.field_submissions'),
         data: trendRows.map(r => Number(r.submissions_count)),
         borderColor: 'rgb(13,148,136)',
-        backgroundColor: 'rgba(13,148,136,0.1)',
+        backgroundColor: isDark ? 'rgba(13,148,136,0.2)' : 'rgba(13,148,136,0.1)',
         fill: true, tension: 0.3
       }
     ]
@@ -96,7 +103,9 @@ export default function AnalyticsPage() {
     datasets: [
       {
         data: volStatuses.map(s => Number(s.count)),
-        backgroundColor: volStatuses.map(s => STATUS_COLORS[s.status] || '#94a3b8')
+        backgroundColor: volStatuses.map(s => STATUS_COLORS[s.status] || '#94a3b8'),
+        borderColor: isDark ? '#0f172a' : '#ffffff',
+        borderWidth: 2
       }
     ]
   };
@@ -140,8 +149,8 @@ export default function AnalyticsPage() {
                   responsive: true, maintainAspectRatio: false,
                   plugins: { legend: { display: false } },
                   scales: {
-                    y: { beginAtZero: true, grid: { color: '#f1f5f9' } },
-                    x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } }
+                    y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: tickColor } },
+                    x: { grid: { display: false }, ticks: { maxTicksLimit: 10, color: tickColor } }
                   }
                 }}
               />
@@ -163,8 +172,8 @@ export default function AnalyticsPage() {
                   responsive: true, maintainAspectRatio: false,
                   plugins: { legend: { display: false } },
                   scales: {
-                    y: { beginAtZero: true, grid: { color: '#f1f5f9' } },
-                    x: { grid: { display: false } }
+                    y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: tickColor } },
+                    x: { grid: { display: false }, ticks: { color: tickColor } }
                   }
                 }}
               />
@@ -185,7 +194,7 @@ export default function AnalyticsPage() {
                   data={volunteerStatusData}
                   options={{
                     responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom' } }
+                    plugins: { legend: { position: 'bottom', labels: { color: legendColor, boxWidth: 12, usePointStyle: true, font: { size: 11 } } } }
                   }}
                 />
               </div>

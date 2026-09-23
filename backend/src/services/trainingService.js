@@ -190,6 +190,41 @@ class TrainingService {
       [pct, pct, pct, course.id, volunteerId]
     );
 
+    // If progress reached 100%, check if this course has no quiz:
+    if (pct >= 100) {
+      const quiz = await db.getOne(`SELECT id FROM training_quizzes WHERE course_id = ?`, [course.id]);
+      if (!quiz) {
+        // Course does not have a quiz, automatically issue completion certificate!
+        const existingCert = await db.getOne(
+          `SELECT * FROM certificates WHERE course_id = ? AND volunteer_id = ?`,
+          [course.id, volunteerId]
+        );
+        if (!existingCert) {
+          const certId = uuid();
+          const certNumber = generateCertificateNumber();
+          const verifyCode = generateVerificationCode();
+          const todayStr = new Date().toISOString().split('T')[0];
+
+          await db.execute(
+            `INSERT INTO certificates (id, certificate_number, volunteer_id, course_id, issue_date, score_achieved, verification_code, created_by, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, NULL, CURRENT_TIMESTAMP)`,
+            [certId, certNumber, volunteerId, course.id, todayStr, 100, verifyCode]
+          );
+
+          const vol = await db.getOne(`SELECT v.user_id, u.phone FROM volunteers v JOIN users u ON u.id = v.user_id WHERE v.id = ?`, [volunteerId]);
+          if (vol) {
+            await notificationService.createNotification({
+              userId: vol.user_id,
+              title: `Hambalyo! Shahaado Cusub / Certificate Unlocked!`,
+              message: `Waxaad ku guuleysatay dhameystirka koorsada '${course.title || 'Training'}'. Shahaadadaadii (${certNumber}) waa diyaar.`,
+              type: 'TRAINING_ASSIGNED',
+              actionUrl: `/volunteer/certificates`
+            });
+          }
+        }
+      }
+    }
+
     const updated = await db.getOne(
       `SELECT progress_percentage, status FROM training_enrollments WHERE course_id = ? AND volunteer_id = ?`,
       [course.id, volunteerId]
@@ -277,8 +312,8 @@ class TrainingService {
         const todayStr = new Date().toISOString().split('T')[0];
 
         await db.execute(
-          `INSERT INTO certificates (id, certificate_number, volunteer_id, course_id, issue_date, score_achieved, verification_code, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+          `INSERT INTO certificates (id, certificate_number, volunteer_id, course_id, issue_date, score_achieved, verification_code, created_by, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, NULL, CURRENT_TIMESTAMP)`,
           [certId, certNumber, volunteerId, course.id, todayStr, percentageScore, verifyCode]
         );
 
@@ -328,17 +363,67 @@ class TrainingService {
    * Get volunteer certificates
    */
   async getCertificates(volunteerId) {
-    return await db.query(
+    // Self-healing: Ensure any course completed with a passing score has a certificate issued
+    try {
+      const missingCerts = await db.query(
+        `SELECT te.course_id, te.quiz_score, tc.title AS course_title, tc.passing_score_percentage
+         FROM training_enrollments te
+         JOIN training_courses tc ON tc.id = te.course_id
+         LEFT JOIN certificates c ON c.course_id = te.course_id AND c.volunteer_id = te.volunteer_id
+         WHERE te.volunteer_id = ? AND te.status = 'COMPLETED' AND c.id IS NULL`,
+        [volunteerId]
+      );
+
+      for (const item of (missingCerts || [])) {
+        const minPass = item.passing_score_percentage || 80;
+        const score = item.quiz_score !== null && item.quiz_score !== undefined ? item.quiz_score : 100;
+        if (score >= minPass) {
+          const certId = uuid();
+          const certNumber = generateCertificateNumber();
+          const verifyCode = generateVerificationCode();
+          const todayStr = new Date().toISOString().split('T')[0];
+          await db.execute(
+            `INSERT INTO certificates (id, certificate_number, volunteer_id, course_id, issue_date, score_achieved, verification_code, created_by, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, NULL, CURRENT_TIMESTAMP)`,
+            [certId, certNumber, volunteerId, item.course_id, todayStr, score, verifyCode]
+          );
+        }
+      }
+    } catch (selfHealErr) {
+      console.warn('[TrainingService] Certificate self-healing notice:', selfHealErr.message);
+    }
+
+    const certs = await db.query(
       `SELECT cert.*, c.title AS course_title, c.category AS course_category,
-              u.full_name AS volunteer_name, v.volunteer_id AS volunteer_code
+              u.full_name AS volunteer_name, v.volunteer_id AS volunteer_code,
+              issuer.full_name AS issuer_name
        FROM certificates cert
        JOIN training_courses c ON c.id = cert.course_id
        JOIN volunteers v ON v.id = cert.volunteer_id
        JOIN users u ON u.id = v.user_id
+       LEFT JOIN users issuer ON issuer.id = cert.created_by
        WHERE cert.volunteer_id = ?
        ORDER BY cert.issue_date DESC`,
       [volunteerId]
     );
+
+    // If a certificate has no created_by, fall back to the Super Administrator name
+    const hasNull = certs.some((c) => !c.issuer_name);
+    if (hasNull) {
+      const superAdmin = await db.getOne(
+        `SELECT u.full_name 
+         FROM users u
+         LEFT JOIN user_roles ur ON ur.user_id = u.id
+         WHERE UPPER(u.role) LIKE '%SUPER%' OR ur.role_id = 'role-super-admin'
+         ORDER BY u.created_at ASC LIMIT 1`
+      );
+      const fallback = superAdmin?.full_name || 'Super Administrator';
+      for (const cert of certs) {
+        if (!cert.issuer_name) cert.issuer_name = fallback;
+      }
+    }
+
+    return certs;
   }
 
   /**
@@ -538,11 +623,11 @@ class TrainingService {
       );
     }
 
-    // Insert Certificate record
+    // Insert Certificate record — save actorId so the issuer name appears on the certificate
     await db.execute(
-      `INSERT INTO certificates (id, certificate_number, volunteer_id, course_id, issue_date, score_achieved, verification_code, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-      [certId, certNumber, vol.id, course.id, dateIssued, score, verifyCode]
+      `INSERT INTO certificates (id, certificate_number, volunteer_id, course_id, issue_date, score_achieved, verification_code, created_by, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+      [certId, certNumber, vol.id, course.id, dateIssued, score, verifyCode, actorId]
     );
 
     // Notify Volunteer

@@ -32,8 +32,13 @@ export default function TrendsChart({
   title,
   height = 260,
   showLegend = true,
-  yAxisLabel = ''
+  yAxisLabel = '',
+  isDark = false
 }) {
+  const gridColor = isDark ? 'rgba(148,163,184,0.15)' : '#f1f5f9';
+  const tickColor = isDark ? '#94a3b8' : '#64748b';
+  const legendTextColor = isDark ? '#e2e8f0' : '#334155';
+
   const options = {
     responsive: true,
     maintainAspectRatio: false,
@@ -42,6 +47,7 @@ export default function TrendsChart({
         display: showLegend,
         position: 'top',
         labels: {
+          color: legendTextColor,
           boxWidth: 12,
           usePointStyle: true,
           font: { size: 11, family: "'Inter', sans-serif" }
@@ -50,6 +56,7 @@ export default function TrendsChart({
       title: {
         display: !!title,
         text: title,
+        color: legendTextColor,
         font: { size: 13, weight: 'bold', family: "'Inter', sans-serif" }
       },
       tooltip: {
@@ -63,15 +70,16 @@ export default function TrendsChart({
     scales: {
       x: {
         grid: { display: false },
-        ticks: { font: { size: 11 } }
+        ticks: { font: { size: 11 }, color: tickColor }
       },
       y: {
         beginAtZero: true,
-        grid: { color: '#f1f5f9' },
-        ticks: { font: { size: 11 } },
+        grid: { color: gridColor },
+        ticks: { font: { size: 11 }, color: tickColor },
         title: {
           display: !!yAxisLabel,
           text: yAxisLabel,
+          color: tickColor,
           font: { size: 11 }
         }
       }

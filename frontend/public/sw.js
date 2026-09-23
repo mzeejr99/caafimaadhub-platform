@@ -9,44 +9,54 @@ const STATIC_ASSETS = [
   '/apple-touch-icon.png'
 ];
 
+// ── Install: pre-cache static shell ──
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[ServiceWorker] Pre-caching offline shell');
+      console.log('[SW] Pre-caching offline shell');
       return cache.addAll(STATIC_ASSETS);
     })
   );
-  self.skipWaiting();
+  // Do NOT call self.skipWaiting() here.
+  // skipWaiting is triggered only after the user clicks "Refresh" in the
+  // update banner (via postMessage { type: 'SKIP_WAITING' }).
 });
 
+// ── Activate: clean up old caches ──
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
+    caches.keys().then((keys) =>
+      Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME) {
-            console.log('[ServiceWorker] Removing old cache', key);
+            console.log('[SW] Removing old cache:', key);
             return caches.delete(key);
           }
         })
-      );
-    })
+      )
+    )
   );
   self.clients.claim();
 });
 
+// ── Message: allow the update banner to trigger skipWaiting ──
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('[SW] skipWaiting triggered by user action');
+    self.skipWaiting();
+  }
+});
+
+// ── Fetch: Network-first for navigation, Cache-first + SWR for assets ──
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
 
-  // Bypass API requests completely from SW cache
-  if (url.pathname.startsWith('/api/')) {
-    return;
-  }
+  // Always bypass SW for API calls
+  if (url.pathname.startsWith('/api/')) return;
 
-  // Handle SPA navigation requests (standalone PWA & direct URL visits)
+  // Navigation (HTML pages) → Network-first, fallback to cached index.html
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(async () => {
@@ -58,17 +68,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets: cache-first or network-fallback
+  // Static assets: Cache-first with Stale-While-Revalidate background refresh
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
-        // Fetch in background to update cache (Stale-While-Revalidate)
+        // Background refresh
         fetch(event.request)
           .then((networkResponse) => {
             if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-              const responseToCache = networkResponse.clone();
               caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, responseToCache);
+                cache.put(event.request, networkResponse.clone());
               });
             }
           })
@@ -79,18 +88,17 @@ self.addEventListener('fetch', (event) => {
       return fetch(event.request)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-            const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
+              cache.put(event.request, networkResponse.clone());
             });
           }
           return networkResponse;
         })
         .catch(async () => {
-          const acceptHeader = event.request.headers ? (event.request.headers.get('accept') || '') : '';
-          if (acceptHeader.includes('text/html')) {
-            const cachedIndex = await caches.match('/index.html');
-            if (cachedIndex) return cachedIndex;
+          const accept = event.request.headers?.get('accept') || '';
+          if (accept.includes('text/html')) {
+            const fallback = await caches.match('/index.html');
+            if (fallback) return fallback;
           }
           return new Response('', { status: 408, statusText: 'Request Timeout' });
         });

@@ -30,6 +30,7 @@ export default function TrainingAdminPage() {
   const [formLoading, setFormLoading] = useState(false);
   const [modalError, setModalError] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [volSearch, setVolSearch] = useState('');
 
   const [form, setForm] = useState({
     code: '',
@@ -95,7 +96,8 @@ export default function TrainingAdminPage() {
 
   const fetchVolunteers = async () => {
     try {
-      const res = await api.get('/volunteers');
+      // Load a large batch so the dropdown is never empty for large orgs
+      const res = await api.get('/volunteers?limit=500&offset=0');
       if (res.success) {
         setVolunteers(res.data || []);
       }
@@ -119,6 +121,7 @@ export default function TrainingAdminPage() {
       await api.post('/training/certificates/issue', issueForm);
       addToast(t('train_admin.cert_issued_toast'), 'success', t('train_admin.cert_issued'));
       setIsIssueCertModalOpen(false);
+      setVolSearch('');
       setIssueForm({
         volunteerId: '',
         courseId: '',
@@ -335,7 +338,7 @@ export default function TrainingAdminPage() {
             {t('train_admin.add')}
           </Button>
         ) : (
-          <Button onClick={() => { setModalError(''); setSubmitted(false); setIsIssueCertModalOpen(true); }} icon={Award}>
+          <Button onClick={() => { setModalError(''); setSubmitted(false); setVolSearch(''); setIsIssueCertModalOpen(true); }} icon={Award}>
             {t('train_admin.issue_btn')}
           </Button>
         )}
@@ -408,7 +411,10 @@ export default function TrainingAdminPage() {
       {/* ISSUE CERTIFICATE MODAL (ADMIN ONLY) */}
       <Modal
         isOpen={isIssueCertModalOpen}
-        onClose={() => setIsIssueCertModalOpen(false)}
+        onClose={() => {
+          setIsIssueCertModalOpen(false);
+          setVolSearch('');
+        }}
         title={t('train_admin.issue_title')}
         subtitle={t('train_admin.sub_issue')}
         size="md"
@@ -421,18 +427,53 @@ export default function TrainingAdminPage() {
             </div>
           )}
 
-          <Select
-            label={t('train_admin.select_volunteer')}
-            name="volunteerId"
-            value={issueForm.volunteerId}
-            onChange={(e) => setIssueForm({ ...issueForm, volunteerId: e.target.value })}
-            options={volunteers.map(v => ({
-              value: v.id,
-              label: `${v.full_name || v.volunteer_id || 'CHV'} (${v.email || v.phone || 'Volunteer'})`
-            }))}
-            required
-            submitted={submitted}
-          />
+          {/* Volunteer search + select */}
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">
+              {t('train_admin.select_volunteer')} <span className="text-red-500">*</span>
+              <span className="ml-2 text-slate-400 font-normal normal-case">({volunteers.length} {language === 'so' ? 'volunteer' : 'volunteers'})</span>
+            </label>
+            <input
+              type="text"
+              placeholder={language === 'so' ? '🔍  Raadi magaca volunteer-ka...' : '🔍  Search volunteer by name or ID...'}
+              value={volSearch}
+              onChange={(e) => setVolSearch(e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+            <select
+              name="volunteerId"
+              value={issueForm.volunteerId}
+              onChange={(e) => setIssueForm({ ...issueForm, volunteerId: e.target.value })}
+              required
+              className={`w-full px-3 py-2.5 text-sm rounded-xl border ${
+                submitted && !issueForm.volunteerId
+                  ? 'border-red-400 bg-red-50 dark:bg-red-950/30'
+                  : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900'
+              } text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500`}
+            >
+              <option value="">-- {language === 'so' ? 'Dooro Volunteer-ka' : 'Select Volunteer'} --</option>
+              {volunteers
+                .filter(v => {
+                  if (!volSearch.trim()) return true;
+                  const q = volSearch.toLowerCase();
+                  return (
+                    (v.full_name || '').toLowerCase().includes(q) ||
+                    (v.volunteer_id || '').toLowerCase().includes(q) ||
+                    (v.email || '').toLowerCase().includes(q) ||
+                    (v.phone || '').toLowerCase().includes(q)
+                  );
+                })
+                .map(v => (
+                  <option key={v.id} value={v.id}>
+                    {v.full_name || v.volunteer_id || 'CHV'} — {v.volunteer_id || v.email || v.phone || 'Volunteer'}
+                  </option>
+                ))
+              }
+            </select>
+            {submitted && !issueForm.volunteerId && (
+              <p className="text-xs text-red-500 font-semibold">{language === 'so' ? 'Volunteer-ka dooro' : 'Please select a volunteer'}</p>
+            )}
+          </div>
 
           <Select
             label={t('train_admin.select_course')}

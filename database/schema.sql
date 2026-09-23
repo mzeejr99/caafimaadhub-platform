@@ -505,9 +505,11 @@ CREATE TABLE `certificates` (
   `expiry_date` DATE,
   `score_achieved` INT NOT NULL,
   `verification_code` VARCHAR(50) UNIQUE NOT NULL,
+  `created_by` VARCHAR(36),
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`volunteer_id`) REFERENCES `volunteers`(`id`) ON DELETE CASCADE,
-  FOREIGN KEY (`course_id`) REFERENCES `training_courses`(`id`) ON DELETE CASCADE
+  FOREIGN KEY (`course_id`) REFERENCES `training_courses`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 13. Inventory & Health Supply Chain
