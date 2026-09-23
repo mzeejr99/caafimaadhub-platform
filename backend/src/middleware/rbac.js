@@ -53,7 +53,7 @@ function requirePermission(permissionCode) {
 
     const roleUpper = (req.user.role || '').toUpperCase().replace(/_/g, '');
     const userRoles = Array.isArray(req.user.roles) ? req.user.roles.map(r => String(r).toUpperCase().replace(/_/g, '')) : [];
-    const isAdmin = roleUpper === 'ADMIN' || userRoles.includes('ADMIN') || roleUpper === 'OPERATIONAL' || userRoles.includes('OPERATIONAL');
+    const isAdmin = roleUpper === 'ADMIN' || userRoles.includes('ADMIN');
 
     if (isAdmin) {
       return next();

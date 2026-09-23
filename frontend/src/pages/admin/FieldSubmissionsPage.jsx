@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useNotification } from '../../contexts/NotificationContext';
-import { ClipboardList, MapPin, Calendar, Eye, CheckCircle2, XCircle, Trash2, User, AlertCircle, Clock, FileCheck, FileX, Camera } from 'lucide-react';
+import { ClipboardList, MapPin, Calendar, Eye, CheckCircle2, XCircle, Trash2, User, AlertCircle, Clock, FileCheck, FileX, Camera, Pill } from 'lucide-react';
 import DataTable from '../../components/common/DataTable';
 import StatCard from '../../components/common/StatCard';
 import Badge from '../../components/common/Badge';
@@ -89,6 +89,34 @@ export default function FieldSubmissionsPage() {
     }
   };
 
+  const getSubmissionSupplies = (row) => {
+    try {
+      const p = typeof row.payload_data === 'string' ? JSON.parse(row.payload_data) : (row.payload_data || row.data || {});
+      if (p?.distributedSupplies === 'YES' || p?.distributed_supplies === 'YES') {
+        const rawItem = p.supplyItem || p.supply_item || 'ORS_SACHETS';
+        const qty = p.supplyQuantity || p.supply_quantity || 1;
+        const itemLabels = {
+          ORS_SACHETS: 'ORS',
+          ZINC_TABLETS: 'Zinc',
+          PARACETAMOL_SYRUP: 'Paracetamol',
+          VITAMIN_A: 'Vit A',
+          AQUATABS_WATER: 'Aquatabs',
+          MUAC_TAPE: 'MUAC',
+          SOAP_HYGIENE: 'Soap/Kit',
+          MOSQUITO_NET: 'Bed Net'
+        };
+        return {
+          item: itemLabels[rawItem] || rawItem,
+          qty,
+          notes: p.supplyNotes || p.supply_notes
+        };
+      }
+    } catch (e) {
+      return null;
+    }
+    return null;
+  };
+
   const columns = [
     {
       header: language === 'so' ? 'Foomka / Ololaha' : 'Form / Campaign',
@@ -121,6 +149,21 @@ export default function FieldSubmissionsPage() {
           {row.volunteer_name || (language === 'so' ? 'Hawl-wadeen' : 'CHV Agent')}
         </span>
       )
+    },
+    {
+      header: language === 'so' ? 'Agab La Siiyay' : 'Supplies Given',
+      render: (row) => {
+        const supplies = getSubmissionSupplies(row);
+        if (!supplies) {
+          return <span className="text-xs text-slate-400 dark:text-slate-600">—</span>;
+        }
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+            <Pill className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+            {supplies.qty}x {supplies.item}
+          </span>
+        );
+      }
     },
     {
       header: language === 'so' ? 'Goobta / GPS' : 'Location / GPS',
@@ -265,6 +308,30 @@ export default function FieldSubmissionsPage() {
                 </p>
               </div>
             </div>
+
+            {getSubmissionSupplies(reviewSubmission) && (
+              <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                    <Pill className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-emerald-950 dark:text-emerald-200">
+                      {language === 'so' ? 'Agab Caafimaad oo Qoyska La Siiyay' : 'Health Supplies Distributed to Household'}
+                    </h4>
+                    <p className="text-xs text-emerald-700 dark:text-emerald-300 font-bold mt-0.5">
+                      {getSubmissionSupplies(reviewSubmission).qty}x {getSubmissionSupplies(reviewSubmission).item}
+                      {getSubmissionSupplies(reviewSubmission).notes && (
+                        <span className="font-normal text-slate-600 dark:text-slate-400 ml-1.5">({getSubmissionSupplies(reviewSubmission).notes})</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 px-2.5 py-1 rounded-md shrink-0">
+                  {language === 'so' ? 'Gacanta laga bixiyay' : 'Distributed On-Site'}
+                </span>
+              </div>
+            )}
 
             {getSubmissionPhoto(reviewSubmission) && (
               <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700">

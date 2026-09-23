@@ -8,7 +8,7 @@ router.use(authenticateToken);
 
 router.get('/items', (req, res, next) => {
   const isSuper = req.user?.role === 'Superadmin' || req.user?.roles?.includes('SUPER_ADMIN');
-  const isAdmin = req.user?.role === 'Admin' || req.user?.roles?.includes('ADMIN') || req.user?.role === 'OPERATIONAL';
+  const isAdmin = req.user?.role === 'Admin' || req.user?.roles?.includes('ADMIN');
   const hasPerm = req.user?.permissions?.includes('inventory.view') || req.user?.permissions?.includes('supply_requests.create') || req.user?.permissions?.includes('supply_requests.view');
   const isVol = req.user?.role === 'Volunteer' || req.user?.roles?.includes('VOLUNTEER');
   if (isSuper || isAdmin || hasPerm || isVol) {
@@ -18,7 +18,7 @@ router.get('/items', (req, res, next) => {
 });
 router.get('/items/:id', (req, res, next) => {
   const isSuper = req.user?.role === 'Superadmin' || req.user?.roles?.includes('SUPER_ADMIN');
-  const isAdmin = req.user?.role === 'Admin' || req.user?.roles?.includes('ADMIN') || req.user?.role === 'OPERATIONAL';
+  const isAdmin = req.user?.role === 'Admin' || req.user?.roles?.includes('ADMIN');
   const hasPerm = req.user?.permissions?.includes('inventory.view') || req.user?.permissions?.includes('supply_requests.create') || req.user?.permissions?.includes('supply_requests.view');
   const isVol = req.user?.role === 'Volunteer' || req.user?.roles?.includes('VOLUNTEER');
   if (isSuper || isAdmin || hasPerm || isVol) {

@@ -224,7 +224,7 @@ export default function LoginPage() {
               </div>
               <div>
                 <h4 className="text-xs font-bold text-slate-900 dark:text-white">{isSomali ? 'Analytics & BI' : 'Real-time BI'}</h4>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400">{isSomali ? 'DHIS2 & Warbixinno' : 'Visual dashboards'}</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400">{isSomali ? 'Warbixino Muuqaal ah' : 'Visual dashboards'}</p>
               </div>
             </div>
 

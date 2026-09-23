@@ -70,11 +70,8 @@ export function LanguageProvider({ children }) {
     if (r === 'SUPERADMIN' || r === 'SUPER_ADMIN') {
       return language === 'so' ? 'Maamulka Sare' : 'Super Admin';
     }
-    if (r === 'ADMIN') {
+    if (r === 'ADMIN' || r === 'OPERATIONAL' || r === 'OPERATIONS') {
       return language === 'so' ? 'Maamule' : 'Admin';
-    }
-    if (r === 'OPERATIONAL' || r === 'OPERATIONS') {
-      return language === 'so' ? 'Hawl-geliye Guud' : 'Operations Manager';
     }
     if (r === 'DATAANALYST' || r === 'DATA_ANALYST' || r === 'ANALYST') {
       return language === 'so' ? 'Falanqeeye Xogta' : 'Data Analyst';

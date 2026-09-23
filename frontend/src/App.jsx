@@ -123,7 +123,7 @@ export default function App() {
       <Route
         path="/admin"
         element={
-          <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'OPERATIONAL', 'DATA_ANALYST']}>
+          <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'DATA_ANALYST']}>
             <AppLayout />
           </ProtectedRoute>
         }

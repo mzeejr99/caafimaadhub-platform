@@ -487,6 +487,8 @@
     "water_unsafe": "Biyo aan nadiif ahayn (Ceel furan / Booyad aan la daweyn)"
   },
   "profile": {
+    "title": "Profile-kayga & Dejinta",
+    "subtitle": "Maamul faahfaahintaada shaqsiga, shahaadooyinka, iyo amniga akoonkaaga",
     "accreditation": "Shahaadaynta:",
     "verified": "La xaqiijiyay & Firfircoon",
     "role": "Doorka:",
@@ -1109,7 +1111,7 @@
     "start_date": "Taariikhda Bilowga (ikhtiyaari)",
     "end_date": "Taariikhda Dhammaadka (ikhtiyaari)",
     "format": "Qaabka Soo-saarka",
-    "standards": "Heerarka Xogta DHIS2 & WHO",
+    "standards": "Heerarka Xogta WHO & Wasaaradda Caafimaadka",
     "ds_volunteers": "Liiska Guud ee Hawl-wadeennada Caafimaadka",
     "ds_campaigns": "Howlgallada Ololaha & Bartilmaameedyada",
     "ds_submissions": "Baaritaannada Goobta & Sahannada",

@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 export default function Sidebar({ isOpen, onClose }) {
-  const { user, isAdmin, isSuperAdmin, isOperational, isAnalyst, isVolunteer } = useAuth();
+  const { user, isAdmin, isSuperAdmin, isAnalyst, isVolunteer } = useAuth();
   const { t, language } = useLanguage();
   const { isOnline } = useOffline();
 
@@ -40,30 +40,13 @@ export default function Sidebar({ isOpen, onClose }) {
     { to: '/admin/subscribers', icon: Mail, label: language === 'so' ? 'Is-qorashada Wararka' : 'Newsletter Subscribers' },
     { to: '/admin/map', icon: Map, label: language === 'so' ? 'Khariidadda GIS' : 'GIS Map Explorer' },
     { to: '/admin/analytics', icon: BarChart3, label: language === 'so' ? 'Warbixinada & Analytics' : 'Analytics & Reports' },
-    { to: '/admin/reports', icon: ScrollText, label: language === 'so' ? 'Xarunta Warbixinta (DHIS2)' : 'Reports & Exports' },
-  ];
-
-  const operationalMenuItems = [
-    { to: '/admin/dashboard', icon: LayoutGrid, label: language === 'so' ? 'Dashboard-ka Hawlgalka' : 'Operations Dashboard' },
-    { to: '/admin/campaigns', icon: Megaphone, label: language === 'so' ? 'Ololayaasha Caafimaadka' : 'Health Campaigns' },
-    { to: '/admin/tasks', icon: CheckSquare, label: language === 'so' ? 'Hawlaha & Xilsaaridda' : 'Tasks & Dispatch' },
-    { to: '/admin/volunteers', icon: Users, label: language === 'so' ? 'Hawl-wadeennada (CHVs)' : 'Volunteers Roster' },
-    { to: '/admin/schedules', icon: CalendarDays, label: language === 'so' ? 'Jadwalka Goobta' : 'Field Schedule' },
-    { to: '/admin/field-data', icon: ClipboardList, label: language === 'so' ? 'Xog-ururinta Goobta' : 'Field Data Submissions' },
-    { to: '/admin/sms', icon: Send, label: language === 'so' ? 'Farriimaha SMS-ka' : 'SMS Broadcasts' },
-    { to: '/admin/inventory', icon: Package, label: language === 'so' ? 'Dawooyinka & Qalabka' : 'Supplies & Stock' },
-    { to: '/admin/supply-requests', icon: ShieldCheck, label: language === 'so' ? 'Dalabaadka Sahayda' : 'Supply Orders' },
-    { to: '/admin/emergencies', icon: AlertTriangle, label: language === 'so' ? 'Digniinaha Cudurrada' : 'Outbreak Alerts' },
-    { to: '/admin/feedback', icon: MessageSquare, label: language === 'so' ? 'Aragtiyaha Dadweynaha' : 'Community Feedback' },
-    { to: '/admin/map', icon: Map, label: language === 'so' ? 'Khariidadda GIS' : 'GIS Map Explorer' },
-    { to: '/admin/reports', icon: ScrollText, label: language === 'so' ? 'Xarunta Warbixinta (DHIS2)' : 'Reports & Exports' },
-    { to: '/admin/profile', icon: User, label: language === 'so' ? 'Xogtayda & Amniga' : 'My Profile & Security' },
+    { to: '/admin/reports', icon: ScrollText, label: language === 'so' ? 'Xarunta Warbixinta' : 'Reports & Exports' },
   ];
 
   const analystMenuItems = [
     { to: '/admin/dashboard', icon: LayoutGrid, label: language === 'so' ? 'Dashboard-ka' : 'Dashboard' },
     { to: '/admin/analytics', icon: BarChart3, label: language === 'so' ? 'Warbixinada & Trends' : 'Analytics & Trends' },
-    { to: '/admin/reports', icon: ScrollText, label: language === 'so' ? 'Xarunta Warbixinta (DHIS2)' : 'Reports & Exports' },
+    { to: '/admin/reports', icon: ScrollText, label: language === 'so' ? 'Xarunta Warbixinta' : 'Reports & Exports' },
     { to: '/admin/field-data', icon: ClipboardList, label: language === 'so' ? 'Xogta Goobta' : 'Field Data Submissions' },
     { to: '/admin/campaigns', icon: Megaphone, label: language === 'so' ? 'Ololayaasha Caafimaadka' : 'Health Campaigns' },
     { to: '/admin/emergencies', icon: AlertTriangle, label: language === 'so' ? 'Digniinaha Cudurrada' : 'Disease Surveillance' },
@@ -106,22 +89,18 @@ export default function Sidebar({ isOpen, onClose }) {
     ? (language === 'so' ? 'Super Maamule' : 'Super Administrator')
     : ((roleCode === 'ADMIN')
       ? (language === 'so' ? 'Maamule' : 'Administrator')
-      : ((roleCode === 'OPERATIONAL')
-        ? (language === 'so' ? 'Hawl-geliye Guud' : 'Operations Manager')
-        : ((roleCode === 'DATA_ANALYST' || roleCode === 'DATAANALYST')
-          ? (language === 'so' ? 'Falanqeeye Xogta' : 'Data Analyst')
-          : ((roleCode === 'VOLUNTEER')
-            ? (language === 'so' ? 'Hawl-wadeen Caafimaad' : 'Community Volunteer')
-            : (language === 'so' ? 'Xubin Bulsho' : 'Community Member')))));
+      : ((roleCode === 'DATA_ANALYST' || roleCode === 'DATAANALYST')
+        ? (language === 'so' ? 'Falanqeeye Xogta' : 'Data Analyst')
+        : ((roleCode === 'VOLUNTEER')
+          ? (language === 'so' ? 'Hawl-wadeen Caafimaad' : 'Community Volunteer')
+          : (language === 'so' ? 'Xubin Bulsho' : 'Community Member'))));
   const initial = displayName.charAt(0).toUpperCase();
 
-  const activeMenuItems = (isSuperAdmin || (isAdmin && !isOperational && !isAnalyst))
+  const activeMenuItems = (isSuperAdmin || (isAdmin && !isAnalyst))
     ? mainMenuItems
-    : (isOperational
-      ? operationalMenuItems
-      : (isAnalyst
-        ? analystMenuItems
-        : (isVolunteer ? volunteerMenuItems : publicMenuItems)));
+    : (isAnalyst
+      ? analystMenuItems
+      : (isVolunteer ? volunteerMenuItems : publicMenuItems));
 
   return (
     <>

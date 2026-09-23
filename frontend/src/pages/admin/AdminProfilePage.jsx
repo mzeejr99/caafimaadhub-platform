@@ -177,7 +177,7 @@ export default function AdminProfilePage() {
     { key: 'users.manage', label: language === 'so' ? 'Maamulka Isticmaalayaasha' : 'User Management & Roles', granted: ['ADMIN', 'SUPER_ADMIN'].includes(displayRole) },
     { key: 'campaigns.manage', label: language === 'so' ? 'Maamulka Ololaha Caafimaadka' : 'Health Campaigns Coordination', granted: true },
     { key: 'field.audit', label: language === 'so' ? 'Baarista Xogta Goobaha' : 'Field Data Audit & Approvals', granted: true },
-    { key: 'sms.dispatch', label: language === 'so' ? 'Dirista Farriimaha SMS-ka' : 'SMS Gateway Broadcasts', granted: ['ADMIN', 'SUPER_ADMIN', 'OPERATIONAL'].includes(displayRole) },
+    { key: 'sms.dispatch', label: language === 'so' ? 'Dirista Farriimaha SMS-ka' : 'SMS Gateway Broadcasts', granted: ['ADMIN', 'SUPER_ADMIN'].includes(displayRole) },
     { key: 'inventory.manage', label: language === 'so' ? 'Maamulka Agabka & Daawada' : 'Supply Depot & Inventory', granted: true },
     { key: 'emergency.manage', label: language === 'so' ? 'Jawaab-celinta Degdegga ah' : 'Emergency Outbreak Response', granted: true }
   ];

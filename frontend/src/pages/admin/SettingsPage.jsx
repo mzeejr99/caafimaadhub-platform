@@ -449,8 +449,7 @@ export default function SettingsPage() {
                       <div>
                         <span className="text-xs font-bold text-emerald-950 dark:text-emerald-200 block">
                           {user?.role === 'SUPER_ADMIN' ? 'Super Administrator' :
-                           user?.role === 'ADMIN' ? 'Operational Administrator' :
-                           user?.role === 'OPERATIONAL' ? 'Operations & Logistics Manager' :
+                           user?.role === 'ADMIN' ? 'Administrator' :
                            user?.role === 'DATA_ANALYST' ? 'Data & Health Analyst' :
                            user?.role === 'VOLUNTEER' ? 'Community Health Volunteer (CHV)' : 'Public Community User'}
                         </span>

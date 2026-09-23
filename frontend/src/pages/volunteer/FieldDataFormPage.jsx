@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useOffline } from '../../contexts/OfflineContext';
-import { ClipboardList, MapPin, CheckCircle2, Save, WifiOff, AlertCircle, User, Camera, Image, X } from 'lucide-react';
+import { ClipboardList, MapPin, CheckCircle2, Save, WifiOff, AlertCircle, User, Camera, Image, X, Package, Pill } from 'lucide-react';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import { Input, Select, Textarea } from '../../components/common/Input';
@@ -29,6 +29,10 @@ export default function FieldDataFormPage() {
     vaccinatedUnderFive: '',
     suspectedIllness: '',
     cleanWaterSource: '',
+    distributedSupplies: 'NO',
+    supplyItem: 'ORS_SACHETS',
+    supplyQuantity: '2',
+    supplyNotes: '',
     notes: '',
     photoUrl: '',
     latitude: '2.0469',
@@ -186,6 +190,14 @@ export default function FieldDataFormPage() {
       suspected_illness: form.suspectedIllness,
       cleanWaterSource: form.cleanWaterSource,
       clean_water_source: form.cleanWaterSource,
+      distributedSupplies: form.distributedSupplies,
+      distributed_supplies: form.distributedSupplies,
+      supplyItem: form.distributedSupplies === 'YES' ? form.supplyItem : null,
+      supply_item: form.distributedSupplies === 'YES' ? form.supplyItem : null,
+      supplyQuantity: form.distributedSupplies === 'YES' ? (parseInt(form.supplyQuantity, 10) || 1) : null,
+      supply_quantity: form.distributedSupplies === 'YES' ? (parseInt(form.supplyQuantity, 10) || 1) : null,
+      supplyNotes: form.distributedSupplies === 'YES' ? form.supplyNotes : null,
+      supply_notes: form.distributedSupplies === 'YES' ? form.supplyNotes : null,
       notes: form.notes,
       photoUrl: form.photoUrl,
       photo_url: form.photoUrl
@@ -234,6 +246,10 @@ export default function FieldDataFormPage() {
       vaccinatedUnderFive: '',
       suspectedIllness: '',
       cleanWaterSource: '',
+      distributedSupplies: 'NO',
+      supplyItem: 'ORS_SACHETS',
+      supplyQuantity: '2',
+      supplyNotes: '',
       notes: '',
       photoUrl: '',
       latitude: '2.0469',
@@ -376,6 +392,84 @@ export default function FieldDataFormPage() {
               ]}
               required
             />
+
+            {/* Supplies Distribution (Agab Bixinta Booqashada) */}
+            <div className="p-4 bg-teal-50/50 dark:bg-teal-950/30 rounded-2xl border border-teal-200 dark:border-teal-900/60 space-y-3 transition-all">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-teal-600 dark:bg-teal-500 text-white flex items-center justify-center shadow-sm shrink-0">
+                    <Pill className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">
+                      {language === 'so' ? 'Bixinta Agabka Caafimaadka' : 'Health Supplies Distribution'}
+                    </h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      {language === 'so' ? 'Qoyskan agab ma siisay booqashadan?' : 'Did you distribute supplies during this visit?'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center bg-white dark:bg-slate-900 rounded-xl p-1 border border-slate-200 dark:border-slate-800 shadow-xs">
+                  <button
+                    type="button"
+                    onClick={() => setForm(prev => ({ ...prev, distributedSupplies: 'NO' }))}
+                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      form.distributedSupplies === 'NO'
+                        ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
+                        : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'
+                    }`}
+                  >
+                    {language === 'so' ? 'Maya (No)' : 'No'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm(prev => ({ ...prev, distributedSupplies: 'YES' }))}
+                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      form.distributedSupplies === 'YES'
+                        ? 'bg-teal-700 text-white shadow-xs'
+                        : 'text-slate-500 hover:text-teal-700 dark:text-slate-400'
+                    }`}
+                  >
+                    {language === 'so' ? 'Haa (Yes)' : 'Yes'}
+                  </button>
+                </div>
+              </div>
+
+              {form.distributedSupplies === 'YES' && (
+                <div className="grid sm:grid-cols-2 gap-3 pt-3 border-t border-teal-200/60 dark:border-teal-900/40">
+                  <Select
+                    label={language === 'so' ? 'Nooca Agabka La Bixiyay' : 'Distributed Item'}
+                    name="supplyItem"
+                    value={form.supplyItem}
+                    onChange={(e) => setForm({ ...form, supplyItem: e.target.value })}
+                    options={[
+                      { value: 'ORS_SACHETS', label: language === 'so' ? 'Xirmooyinka ORS (Oral Rehydration Salts)' : 'ORS Sachets' },
+                      { value: 'ZINC_TABLETS', label: language === 'so' ? 'Kiniinka Zinc 20mg (Zinc Tablets)' : 'Zinc Tablets 20mg' },
+                      { value: 'PARACETAMOL_SYRUP', label: language === 'so' ? 'Sharoobada Qandhada (Paracetamol)' : 'Paracetamol Syrup' },
+                      { value: 'VITAMIN_A', label: language === 'so' ? 'Fiitamiin A (Vitamin A Capsules)' : 'Vitamin A Capsules' },
+                      { value: 'AQUATABS_WATER', label: language === 'so' ? 'Kiniinka Biyaha Lagu Safiyo (Aquatabs)' : 'Water Purification Tablets' },
+                      { value: 'MUAC_TAPE', label: language === 'so' ? 'Cajaladda Nafaqada (MUAC Tape)' : 'MUAC Screening Tape' },
+                      { value: 'SOAP_HYGIENE', label: language === 'so' ? 'Xirmada Nadaafadda / Saabuun' : 'Hygiene / Soap Kit' },
+                      { value: 'MOSQUITO_NET', label: language === 'so' ? 'Maro Kaneeco (LLIN Bed Net)' : 'Mosquito Bed Net' }
+                    ]}
+                    required
+                  />
+
+                  <Input
+                    label={language === 'so' ? 'Tirada La Siiyay (Quantity)' : 'Quantity Given'}
+                    name="supplyQuantity"
+                    type="text"
+                    value={form.supplyQuantity}
+                    onChange={(e) => setForm({ ...form, supplyQuantity: e.target.value })}
+                    validationType="number-only"
+                    placeholder="e.g. 2"
+                    required
+                    helperText={language === 'so' ? 'Tusaale: 2 xirmo' : 'e.g. 2 units'}
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Right Column: GPS Location Picker & Notes */}

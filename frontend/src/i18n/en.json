@@ -487,6 +487,8 @@
     "water_unsafe": "Unsafe water (open well / untreated water truck)"
   },
   "profile": {
+    "title": "My Profile & Settings",
+    "subtitle": "Manage your personal details, credentials, and account security",
     "accreditation": "Accreditation:",
     "verified": "Verified Active",
     "role": "Role:",
@@ -1109,7 +1111,7 @@
     "start_date": "Start Date (Optional)",
     "end_date": "End Date (Optional)",
     "format": "Export Format",
-    "standards": "DHIS2 & WHO Data Standards",
+    "standards": "WHO & Ministry of Health Data Standards",
     "ds_volunteers": "Community Health Volunteers Master Roster",
     "ds_campaigns": "Campaign Operations & Indicator Targets",
     "ds_submissions": "Field Assessment & Survey Submissions",

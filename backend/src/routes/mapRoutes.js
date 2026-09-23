@@ -10,7 +10,7 @@ function requireMapAccess(req, res, next) {
     return res.status(403).json({ success: false, message: 'Authentication required' });
   }
   const role = (req.user.role || '').toUpperCase().replace(/[_\s-]/g, '');
-  const allowed = ['SUPERADMIN', 'ADMIN', 'OPERATIONAL', 'DATAANALYST', 'ANALYST'];
+  const allowed = ['SUPERADMIN', 'ADMIN', 'DATAANALYST', 'ANALYST'];
   if (allowed.includes(role)) return next();
   // Also check permissions array
   if (req.user.permissions && req.user.permissions.includes('maps.view')) return next();

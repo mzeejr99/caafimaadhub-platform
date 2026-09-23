@@ -101,7 +101,7 @@ class SmsService {
          FROM users u 
          JOIN user_roles ur ON u.id = ur.user_id 
          JOIN roles r ON ur.role_id = r.id 
-         WHERE r.code IN ('ADMIN', 'SUPER_ADMIN', 'OPERATIONAL', 'ANALYST') AND u.status = 'ACTIVE' AND u.phone IS NOT NULL AND u.phone != ''`
+         WHERE r.name IN ('ADMIN', 'SUPER_ADMIN', 'DATA_ANALYST') AND (u.status = 'ACTIVE' OR u.status = 'active') AND u.phone IS NOT NULL AND u.phone != ''`
       );
       recipientList = staff.map(s => ({ phone: s.phone, userId: s.user_id }));
     } else if (audience === 'CUSTOM' || customNumbers) {
